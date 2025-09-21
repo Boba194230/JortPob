@@ -29,6 +29,8 @@ namespace JortPob
         public readonly EMEVD emevd;
         public readonly EMEVD.Event init;
 
+        public readonly Dictionary<uint, string> entityIdMapping; // used for debuggin, just records a string (usually a record id) as a description for created entity ids
+
         public enum EntityType
         {
             Enemy = 0, Asset = 1000, Region = 2000, Event = 3000, Collision = 4000, Group = 5000
@@ -52,6 +54,8 @@ namespace JortPob
             this.x = x;
             this.y = y;
             this.block = block;
+
+            entityIdMapping = new();
 
             AUTO = new(Utility.ResourcePath(@"script\\er-common.emedf.json"), true, true);
 
@@ -162,7 +166,7 @@ namespace JortPob
         }
 
         /* Create a unique entity id for this MSB */
-        public uint CreateEntity(EntityType type)
+        public uint CreateEntity(EntityType type, string name)
         {
             uint rawCount = entityUsedCounts[type]++;
             uint mapOffset;
@@ -178,7 +182,9 @@ namespace JortPob
 
             if (rawCount >= 1000) { Lort.Log($" ## CRITICAL ## ENTITY ID OVERFLOWED IN m{map:D2}_{x:D2}_{y:D2}", Lort.Type.Debug); }
 
-            return mapOffset + ((uint)type) + rawCount;
+            uint newid = mapOffset + ((uint)type) + rawCount;
+            entityIdMapping.Add(newid, name);
+            return newid;
         }
 
         public Flag FindFlagByLookupKey(ScriptFlagLookupKey key)

@@ -252,7 +252,7 @@ namespace JortPob
                         door.warp.x = to.group.area;
                         door.warp.y = to.group.unk;
                         door.warp.block = to.group.block;
-                        door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region);
+                        door.warp.entity = scriptManager.GetScript(to.group).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->{door.warp.cell}");
                         to.AddWarp(door.warp);
                     }
                     // Door goes to exterior cell
@@ -264,7 +264,7 @@ namespace JortPob
                         door.warp.x = to.coordinate.x;
                         door.warp.y = to.coordinate.y;
                         door.warp.block = to.block;
-                        door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region);
+                        door.warp.entity = scriptManager.GetScript(to).CreateEntity(Script.EntityType.Region, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]");
                         to.AddWarp(door.warp);
                     }
                 }
@@ -277,7 +277,7 @@ namespace JortPob
                     foreach(DoorContent door in chunk.doors)
                     {
                         HandleDoor(door);
-                        if(door.warp != null) { door.entity = scriptManager.GetScript(group).CreateEntity(Script.EntityType.Asset); }
+                        if(door.warp != null) { door.entity = scriptManager.GetScript(group).CreateEntity(Script.EntityType.Asset, $"DoorEntry::{door.cell.name}->{door.warp.cell}"); }
                     }
                 }
             }
@@ -287,7 +287,7 @@ namespace JortPob
                 foreach (DoorContent door in tile.doors)
                 {
                     HandleDoor(door);
-                    if (door.warp != null) { door.entity = scriptManager.GetScript(tile).CreateEntity(Script.EntityType.Asset); }
+                    if (door.warp != null) { door.entity = scriptManager.GetScript(tile).CreateEntity(Script.EntityType.Asset, $"DoorExit::{door.cell.name}->exterior[{door.warp.x},{door.warp.y}]"); }
                 }
             }
 
@@ -324,7 +324,7 @@ namespace JortPob
                 foreach (NpcContent npc in npcs)
                 {
                     Script.Flag countFlag = GetTypeCountFlag(npc.id);
-                    npc.entity = script.CreateEntity(Script.EntityType.Enemy);
+                    npc.entity = script.CreateEntity(Script.EntityType.Enemy, $"NPC::{npc.id}");
                     script.RegisterNpc(npc, countFlag);
                 }
             }
@@ -335,7 +335,7 @@ namespace JortPob
                 foreach (CreatureContent creature in creatures)
                 {
                     Script.Flag countFlag = GetTypeCountFlag(creature.id);
-                    creature.entity = script.CreateEntity(Script.EntityType.Enemy);
+                    creature.entity = script.CreateEntity(Script.EntityType.Enemy, $"Creature::{creature.id}");
                     script.RegisterCreature(creature, countFlag);
                 }
             }

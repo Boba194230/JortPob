@@ -373,7 +373,8 @@ namespace JortPob
                                         {
                                             Script.Flag hflag = scriptManager.GetFlag(Flag.Designation.Hostile, npcContent.entity.ToString());
                                             Script.Flag fvar = scriptManager.GetFlag(Script.Flag.Designation.FriendHitCounter, npcContent.entity.ToString());
-                                            return $"(not GetEventFlag({hflag.id}) and GetEventFlagValue({fvar.id}, {fvar.Bits()}) {filter.OperatorSymbol()} {filter.value - 1})";
+                                            Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
+                                            return $"(not GetEventFlag({hflag.id}) and GetEventFlagValue({dvar.id}, {dvar.Bits()}) > 60 and GetEventFlagValue({fvar.id}, {fvar.Bits()}) {filter.OperatorSymbol()} {filter.value - 1})";
                                         }
 
                                     default: return null;
@@ -398,7 +399,7 @@ namespace JortPob
                                     case DialogFilter.Function.VariableCompare:
                                         {
                                             // Random 100 handled by rng gen in the esd. Other globals are handled normally
-                                            if (filter.id == "Random100")
+                                            if (filter.id == "random100")
                                             {
                                                 return $"CompareRNGValue({filter.OperatorString()}, {filter.value}) == True";
                                             }

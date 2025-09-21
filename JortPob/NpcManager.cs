@@ -5,7 +5,9 @@ using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using static JortPob.Dialog;
+using static SoulsAssetPipeline.Audio.Wwise.WwiseBlock;
 
 namespace JortPob
 {
@@ -21,7 +23,7 @@ namespace JortPob
         private ScriptManager scriptManager;
 
         private readonly Dictionary<string, int> topicText; // topic text id map
-        private readonly Dictionary<string, EsdInfo> esdsByContentId;
+        private readonly List<EsdInfo> esds;
         private readonly Dictionary<string, int> npcParamMap;
 
         private int nextNpcParamId;  // increment by 10
@@ -34,7 +36,7 @@ namespace JortPob
             this.text = text;
             this.scriptManager = scriptManager;
 
-            esdsByContentId = new();
+            esds = new();
             npcParamMap = new();
             topicText = new();
 
@@ -52,9 +54,9 @@ namespace JortPob
             return id;
         }
 
-        /* Returns esd id, creates it if it does't exist */
+        /* Creates an ESD for the given instance of a npc */
         /* ESDs are generally 1 to 1 with characters but there are some exceptions like guards */
-        // @TODO: THIS SYSTEM USING AN ARRAY OF INTS IS FUCKING SHIT PLEASE GOD REFACTOR THIS TO JUST USE THE ACTUAL TILE OR INTERIOR GROUP JESUS
+        // @TODO: THIS SYSTEM USING AN ARRAY OF INTS IS FUCKING SHIT PLEASE GOD REFACTOR THIS TO JUST USE THE ACTUAL TILE OR INTERIOR GROUP
         public int GetESD(int[] msbIdList, NpcContent content)
         {
             if (Const.DEBUG_SKIP_ESD) { return 0; } // debug skip
@@ -62,10 +64,9 @@ namespace JortPob
             // First check if we even need one, hostile or dead npcs dont' get talk data for now
             if (content.dead || content.hostile) { return 0; }
 
-            // Second check if an esd already exists for the given NPC Record. Return that. This is sort of slimy since a few generaetd values may be incorrect for a given instance of an npc but w/e
-            // @TODO: I can basically guarantee this will cause issues in the future. guards are the obvious thing since if every guard shares esd then they will share all values like disposition
-            EsdInfo lookup = GetEsdInfoByContentId(content.id);
-            if (lookup != null) { lookup.AddMsb(msbIdList); return lookup.id; }
+            /* There used to be a check here that looked for an esd tied to the record id of the npc, i'm removing this */
+            /* Every instance of an npc needs its own esd. Sharing esd's will only lead to horrible bugs long term */
+            /* ESDs and event flags now use the entity id of the individual npc as their unique identifying value NOT THE RECORD ID */
 
             List<Tuple<DialogRecord, List<DialogInfoRecord>>> dialog = esm.GetDialog(scriptManager, content);
             SoundManager.SoundBankInfo bankInfo = sound.GetBank(content);
@@ -117,7 +118,7 @@ namespace JortPob
             }
             param.GenerateTalkParam(text, data);
 
-            int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}6000");  // i know guh guhhhhh
+            int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}{msbIdList[0]:D2}{(msbIdList[0]==60?0:msbIdList[1]):D2}");  // i know guh guhhhhh
 
             Script areaScript = scriptManager.GetScript(msbIdList[0], msbIdList[1], msbIdList[2], msbIdList[3]); // get area script for this npc
 
@@ -129,128 +130,64 @@ namespace JortPob
             dialogEsd.Write(pyPath);
 
             EsdInfo esdInfo = new(pyPath, esdPath, content.id, esdId);
-            esdInfo.AddMsb(msbIdList);
-            esdsByContentId[content.id] = esdInfo;
+            esds.Add(esdInfo);
 
             return esdId;
         }
 
-        /* I dont know what the fuck i was thinking when i wrote this function jesus */
+        /* ESDs are now 1 to 1 with individual placements of enemies/creatures so the file writing has been simplified */
         public void Write()
         {
-            EsdWorker.Go(esdsByContentId);
+            EsdWorker.Go(esds);
 
-            Lort.Log($"Binding {esdsByContentId.Count()} ESDs...", Lort.Type.Main);
-            Lort.NewTask($"Binding ESDs", esdsByContentId.Count());
+            Lort.Log($"Binding {esds.Count()} ESDs...", Lort.Type.Main);
+            Lort.NewTask($"Binding ESDs", esds.Count());
 
-            Dictionary<int, BND4> bnds = new();
-
+            /* Create all needed bnds */
+            Dictionary<(int, int), BND4> bnds = new();
+            foreach(EsdInfo esd in esds)
             {
-                int i = 0;
-                foreach (EsdInfo esdInfo in esdsByContentId.Values)
+                if(!bnds.ContainsKey((esd.map, esd.area)))
                 {
-                    string esdPath = esdInfo.esd;
-                    byte[] esdBytes = ESD.Read(esdPath).Write();
-
-                    foreach (int msbId in esdInfo.msbIds)
-                    {
-                        if (!bnds.TryGetValue(msbId, out BND4 bnd))
-                        {
-                            bnd = new()
-                            {
-                                Compression = SoulsFormats.DCX.Type.DCX_KRAK,
-                                Version = "07D7R6"
-                            };
-                            bnds.Add(msbId, bnd);
-                        }
-
-                        BinderFile file = new()
-                        {
-                            Bytes = esdBytes.ToArray(),
-                            Name =
-                                $"N:\\GR\\data\\INTERROOT_win64\\script\\talk\\m{msbId.ToString("D4").Substring(0, 2)}_{msbId.ToString("D4").Substring(2, 2)}_00_00\\{Utility.PathToFileName(esdPath)}.esd",
-                            ID = i
-                        };
-
-                        bnds[msbId].Files.Add(file);
-                    }
-
-                    ++i;
-                    Lort.TaskIterate();
+                    BND4 bnd = new();
+                    bnd.Compression = SoulsFormats.DCX.Type.DCX_KRAK;
+                    bnd.Version = "07D7R6";
+                    bnds.Add((esd.map, esd.area), bnd);
                 }
             }
 
-            Lort.Log($"Writing {bnds.Count} Binded ESDs... ", Lort.Type.Main);
-            Lort.NewTask($"Writing {bnds.Count} Binded ESDs... ", bnds.Count);
-            foreach (KeyValuePair<int, BND4> kvp in bnds)
+            /* Write esds to bnds */
+            foreach(EsdInfo esd in esds)
             {
-                BND4 bnd = kvp.Value;
-                List<BinderFile> files = bnd.Files;
-                int n = files.Count;
+                BND4 bnd = bnds[(esd.map, esd.area)];
+                BinderFile file = new();
+                file.Bytes = System.IO.File.ReadAllBytes(esd.esd);
+                file.Name = $"N:\\GR\\data\\INTERROOT_win64\\script\\talk\\m{esd.map:D2}_{esd.area:D2}_00_00\\{Utility.PathToFileName(esd.esd)}.esd";
+                file.ID = bnd.Files.Count();
 
-                if (n > 1)
-                {
-                    // copy to array for fast sort
-                    BinderFile[] arr = files.ToArray();
-                    uint[] keys = new uint[n];
-
-                    for (int i = 0; i < n; i++)
-                        keys[i] = BinderFileIdComparer.ParseBinderFileId(arr[i]); // fast parse function that avoids Substring if possible
-
-                    Array.Sort(keys, arr); // sorts arr by keys (closest to minimal overhead)
-
-                    // copy back and reassign IDs
-                    for (int i = 0; i < n; i++)
-                    {
-                        files[i] = arr[i];
-                        files[i].ID = i;
-                    }
-                }
-
-                kvp.Value.Write($"{Const.OUTPUT_PATH}script\\talk\\m{kvp.Key.ToString("D4").Substring(0, 2)}_{kvp.Key.ToString("D4").Substring(2, 2)}_00_00.talkesdbnd.dcx");
+                bnd.Files.Add(file);
                 Lort.TaskIterate();
             }
 
-            //foreach (KeyValuePair<int, BND4> kvp in bnds)
-            //{
-            //    /* Sort bnd ?? test */
-            //    BND4 bnd = kvp.Value;
-            //    for (int i = 0; i < bnd.Files.Count() - 1; i++)
-            //    {
-            //        BinderFile file = bnd.Files[i];
-            //        uint fileId = uint.Parse(Utility.PathToFileName(file.Name).Substring(1));
-            //        BinderFile next = bnd.Files[i+1];
-            //        uint nextId = uint.Parse(Utility.PathToFileName(next.Name).Substring(1));
+            /* Write bnds to file */
+            Lort.Log($"Writing {bnds.Count} Binded ESDs... ", Lort.Type.Main);
+            Lort.NewTask($"Writing {bnds.Count} Binded ESDs... ", bnds.Count);
+            foreach (KeyValuePair<(int, int), BND4> kvp in bnds)
+            {
+                int map = kvp.Key.Item1;
+                int area = kvp.Key.Item2;
+                BND4 bnd = kvp.Value;
 
-            //        if (nextId < fileId)
-            //        {
-            //            BinderFile temp = file;
-            //            bnd.Files[i] = next;
-            //            bnd.Files[i + 1] = temp;
-            //            i = 0; // slow and bad
-            //        }
-            //    }
-
-            //    for(int i = 0; i < bnd.Files.Count() ; i++)
-            //    {
-            //        BinderFile file = bnd.Files[i];
-            //        file.ID = i;
-            //    }
-
-            //    kvp.Value.Write($"{Const.OUTPUT_PATH}script\\talk\\m{kvp.Key.ToString("D4").Substring(0, 2)}_{kvp.Key.ToString("D4").Substring(2, 2)}_00_00.talkesdbnd.dcx");
-            //}
-        }
-
-        private EsdInfo GetEsdInfoByContentId(string contentId)
-        {
-            return esdsByContentId.GetValueOrDefault(contentId);
+                bnd.Write($"{Const.OUTPUT_PATH}script\\talk\\m{map:D2}_{area:D2}_00_00.talkesdbnd.dcx");
+                Lort.TaskIterate();
+            }
         }
 
         public class EsdInfo
         {
             public readonly string py, esd, content;
-            public readonly int id;
-            public readonly List<int> msbIds;
+            public readonly int id;  // esd id
+            public readonly int map, area; // msb ids
 
             public EsdInfo(string py, string esd, string content, int id)
             {
@@ -258,16 +195,10 @@ namespace JortPob
                 this.esd = esd;        // path to compiled esd
                 this.content = content;
                 this.id = id;
-                msbIds = new();
-            }
-
-            public void AddMsb(int[] msbId)
-            {
-                int[] alteredId;
-                if (msbId[0] == 60) { alteredId = new[] { 60, 0 }; }
-                else { alteredId = new[] { msbId[0], msbId[1] }; }
-                int GUH = (alteredId[0] * 100) + alteredId[1];
-                if (!msbIds.Contains(GUH)) { msbIds.Add(GUH); }
+                string m = id.ToString().Substring(5, 2);
+                string a = id.ToString().Substring(7, 2);
+                map = int.Parse(m);
+                area = int.Parse(a);
             }
         }
 

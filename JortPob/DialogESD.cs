@@ -497,26 +497,26 @@ namespace JortPob
 
             string s = $"def t{id_s}_x39():\r\n    ShuffleRNGSeed(100)\r\n    SetRNGSeed()\r\n";
 
+            /* lower disposition */
+            Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
+            s += $"    # lower disposition from being hit\r\n";
+            s += $"    assert t{id_s}_x{Const.ESD_STATE_HARDCODE_MODDISPOSITION}(dispositionflag={dvar.id}, value={-25})\r\n\r\n";
+
             /* decide if we go hostile from being hit */
             Script.Flag hostileFlag = scriptManager.GetFlag(Script.Flag.Designation.Hostile, npcContent.entity.ToString());
             Script.Flag friendHitCounter = scriptManager.GetFlag(Script.Flag.Designation.FriendHitCounter, npcContent.entity.ToString());
             Script.Flag disposition = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
             s += $"    # decide if we are going hostile from this attack\r\n";
-            s += $"    if GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 1 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 15:\r\n";
+            s += $"    if GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 1 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 10:\r\n";
             s += $"        SetEventFlag({hostileFlag.id}, FlagState.On)\r\n";
-            s += $"    elif GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 2 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 25:\r\n";
+            s += $"    elif GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 2 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 15:\r\n";
             s += $"        SetEventFlag({hostileFlag.id}, FlagState.On)\r\n";
-            s += $"    elif GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 3 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 35:\r\n";
+            s += $"    elif GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) == 3 and GetEventFlagValue({disposition.id}, {disposition.Bits()}) < 20:\r\n";
             s += $"        SetEventFlag({hostileFlag.id}, FlagState.On)\r\n";
             s += $"    elif GetEventFlagValue({friendHitCounter.id}, {friendHitCounter.Bits()}) >= 4:\r\n";
             s += $"        SetEventFlag({hostileFlag.id}, FlagState.On)\r\n";
             s += $"    else:\r\n";
             s += $"        pass\r\n\r\n";
-
-            /* lower disposition */
-            Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disposition, npcContent.entity.ToString());
-            s += $"    # lower disposition from being hit\r\n";
-            s += $"    assert t{id_s}_x{Const.ESD_STATE_HARDCODE_MODDISPOSITION}(dispositionflag={dvar.id}, value={-10})\r\n\r\n";
 
             /* pick voice line to play */
             s += $"    # play a voice line in response to being hit\r\n";

@@ -501,7 +501,7 @@ namespace JortPob
 
             /* Create debug warp area */
             {
-                /* DEBUG - Add a warp from church of elleh to Seyda Neen */
+                /* DEBUG - Add a warp from church of elleh to Seyda Neen */ // @TODO: Move this into it's own class or smth?
                 /* @TODO: DELETE THIS WHEN IT IS NO LONGER NEEDED! */
                 MSBE debugMSB = MSBE.Read(Utility.ResourcePath(@"test\m60_42_36_00.msb.dcx"));
                 MSBE.Part.Asset debugThingToDupe = null;
@@ -593,6 +593,7 @@ namespace JortPob
                         delayCounter = 0;
                     }
                 }
+                debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"DisplayBanner(31);")); // display a banner when save data reset is done. it takes a secondish
 
                 debugScript.emevd.Events.Add(debugResetEvent);
                 debugScript.init.Instructions.Add(debugScript.AUTO.ParseAdd($"InitializeEvent(0, {debugResetFlag.id}, 0)"));

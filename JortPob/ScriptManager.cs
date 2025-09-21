@@ -146,7 +146,15 @@ namespace JortPob
             List<string> flagInfo = new();
             foreach (Flag flag in allFlags)
             {
-                flagInfo.Add($"{flag.category.ToString().PadRight(16)} {flag.type.ToString().PadRight(16)} {flag.designation.ToString().PadRight(24)} {flag.name.ToString().PadRight(48)} {flag.value.ToString().PadRight(6)} {flag.id.ToString()}");
+                /* If the description of a flag looks like it's a number, its probably an entity id, search the entityIdMappings and see if we have some info on it to include in this file */
+                string desc = null;
+                foreach (Script script in scripts)
+                {
+                    if (!Utility.StringIsNumeric(flag.name)) { break; } // dont bother checking unless flag name appears to be an entityid
+                    if (script.entityIdMapping.ContainsKey(uint.Parse(flag.name))) { desc = script.entityIdMapping[uint.Parse(flag.name)]; break; }
+                }
+                /* Write */
+                flagInfo.Add($"{flag.category.ToString().PadRight(16)} {flag.type.ToString().PadRight(16)} {flag.designation.ToString().PadRight(24)} {flag.name.ToString().PadRight(48)} {flag.value.ToString().PadRight(6)} {flag.id.ToString().PadRight(18)} {(desc!=null?desc:"")}");
             }
             System.IO.File.WriteAllLines($"{Const.OUTPUT_PATH}flag information.txt", flagInfo.ToArray());
 
