@@ -617,16 +617,10 @@ namespace JortPob
                 {
                     string filter = filters[j];
                     combinedFilters.Append($"({filter})");
-                    if (j < filters.Count() - 1)
-                    {
-                        combinedFilters.Append(" or ");
-                    }
+                    if (j < filters.Count() - 1) { combinedFilters.Append(" or "); }
                 }
 
-                if (combinedFilters.Length > 0)
-                {
-                    combinedFilters.Insert(0, " and (").Append(')');
-                }
+                if (combinedFilters.Length > 0) { combinedFilters.Insert(0, " and (").Append(')'); }
 
                 s.Append($"        # topic: \"{topic.dialog.id}\"\r\n        if GetEventFlag({topic.dialog.flag.id}){combinedFilters}:\r\n            AddTalkListData({i+listCount}, {topic.topicText}, -1)\r\n        else:\r\n            pass\r\n");
             }
