@@ -85,6 +85,8 @@ namespace JortPob.Common
         #endregion
 
         #region Dialog
+        public static readonly bool USE_SAM = true; // very ultra mega hyper slow, only for stress testing dialog
+        public static readonly string DEFAULT_DIALOG_WEM = Utility.ResourcePath(@"sound\page_turn.wem");
         public static readonly int MAX_CHAR_PER_TALK = 160;
         public static readonly int MAX_ESD_PER_VCBNK = 10;
         #endregion
@@ -118,7 +120,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] { "Seyda Neen", "Mournhold" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] { "Seyda Neen" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

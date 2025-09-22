@@ -100,15 +100,18 @@ namespace JortPob
                         SoundBank.Sound snd = sound.FindSound(content, info.id + i); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
 
                         // Use an existing wem and talkparam we already generated because it's a match
-                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); }
+                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); continue; } // and continue here
+
+                        /* Debug voice acting using SAM */
+                        string wemFile;
+                        uint nxtid = (uint)(info.id + i);
+                        if (Const.USE_SAM) { wemFile = sound.GenerateLine(dia, info, line, nxtid, content); }
+                        else { wemFile = Const.DEFAULT_DIALOG_WEM; }
+
                         // If this is not the first line in a talkparam group we must generate with sequential ids!
-                        else if (talkRows.Count() > 0)
-                        {
-                            uint nxtid = (uint)(talkRows[0] + i);
-                            talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line, nxtid));
-                        }
+                        if (talkRows.Count() > 0) { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line, nxtid)); }
                         // Make a new sound and talkparam row because no suitable match was found!
-                        else { talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line)); }
+                        else { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line)); }
                     }
                     // The parmanager function will automatically skip duplicates when addign talkparam rows so we don't need to do anything here. the esd gen needs those dupes so ye
                     topicData.talks.Add(new(info, talkRows, lines));

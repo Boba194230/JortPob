@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="DirectXTexNet" Version="1.0.7" />
     <PackageReference Include="gfoidl.Base64" Version="2.0.0" />
+    <PackageReference Include="Jint" Version="4.4.1" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="SharpAssimp" Version="6.0.5" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.5" />
     <PackageReference Include="TeximpNet" Version="1.4.3" />
@@ -1727,6 +1729,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\tools\MergeToMaster\merge_to_master.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\tools\SamJs\samjs.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Resources\tools\Tes3Conv\tes3conv.exe">

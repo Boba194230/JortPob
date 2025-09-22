@@ -96,28 +96,7 @@ namespace JortPob
                 objects.Add(soundPlayEvent);
                 objects.Add(soundStopEvent);
 
-                string pythonPath = @"C:\Users\dmtin\AppData\Local\Programs\Python\Python313\python.exe";
-                string scriptPath = $"\"{Utility.ResourcePath(@"tools\WemConversionWrapper\wem_conversion_wrapper.py")}\"";
-
-                /* //@TODO: STUB FOR NOW BUT CORRECTISH CODE 
-                string wavPath = $"\"{Utility.ResourcePath(@"sound\test_sound.wav")}\"";
-
-                ProcessStartInfo startInfo2 = new(pythonPath, $"{ scriptPath} {wavPath}")
-                {
-                    WorkingDirectory = Utility.ResourcePath(@"tools\WemConversionWrapper"),
-                    UseShellExecute = false,
-                    CreateNoWindow = false
-                };
-                var process2 = Process.Start(startInfo2);
-                process2.WaitForExit();
-
-                string wemSrcPath = Utility.ResourcePath(@"sound\test_sound.wem");
-                string wemTgtPath = $"{dir}\\wem\\{sourceId.ToString("D9").Substring(0, 2)}\\{sourceId.ToString("D9")}.wem";
-                if (!Directory.Exists(Path.GetDirectoryName(wemTgtPath))) { Directory.CreateDirectory(Path.GetDirectoryName(wemTgtPath)); }
-                if (File.Exists(wemTgtPath)) { File.Delete(wemTgtPath); }
-                System.IO.File.Move(wemSrcPath, wemTgtPath); */
-
-                string wemSrcPath = Utility.ResourcePath(@"sound\page_turn.wem");
+                string wemSrcPath = sound.file;
                 string wemTgtPath = $"{dir}\\wem\\{sourceId.ToString("D9").Substring(0, 2)}\\{sourceId.ToString("D9")}.wem";
                 if (!Directory.Exists(Path.GetDirectoryName(wemTgtPath))) { Directory.CreateDirectory(Path.GetDirectoryName(wemTgtPath)); }
                 if (File.Exists(wemTgtPath)) { File.Delete(wemTgtPath); }
@@ -146,7 +125,7 @@ namespace JortPob
         {
             public readonly int dialogInfo; // id from dialoginfo we use for quicker searching when adding wems
             public readonly uint row, play, stop, source;   // source is wem id
-            public readonly string transcript, file;
+            public readonly string transcript, file;        // wem file
             public Sound(int dialogInfo, uint row, uint play, uint stop, string transcript, string file, uint source)
             {
                 this.dialogInfo = dialogInfo;

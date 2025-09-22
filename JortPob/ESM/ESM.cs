@@ -76,6 +76,7 @@ namespace JortPob
 
                 /* Convert esm to a json file using tes3conv */
                 Lort.Log($"Creating 'cache\\morrowind.json' ...", Lort.Type.Main);
+                if(!System.IO.Directory.Exists(Const.CACHE_PATH)) { System.IO.Directory.CreateDirectory(Const.CACHE_PATH); }
                 ProcessStartInfo convStartInfo = new(Utility.ResourcePath(@"tools\Tes3Conv\tes3conv.exe"), $"-c \"{esmPath}\" \"{jsonPath}\"")
                 {
                     WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),

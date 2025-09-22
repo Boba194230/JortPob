@@ -62,7 +62,7 @@ namespace JortPob.Common
                 bool isPunc = c == '.' || c == ';' || c == '?' || c == '!';
                 if (isPunc) { lines.Add(concat); concat = ""; }
             }
-            lines.Add(concat.Trim());
+            if (concat.Trim() != "") { lines.Add(concat.Trim()); }
 
             // See if any lines desperately need to be split on a comma or in the middle of a sentence
             for(int i=0;i<lines.Count();i++)
@@ -93,6 +93,11 @@ namespace JortPob.Common
 
                     string a = $"{line.Substring(0, splitAt+1).Trim()}{(onSpace?"--":"")}";
                     string b = $"{(onSpace ? "--" : "")}{line.Substring(splitAt+1, line.Length - splitAt - 1).Trim()}";
+
+                    // Add lines back in the right spot
+                    lines.RemoveAt(i);
+                    lines.Insert(i, b);
+                    lines.Insert(i, a);
                 }
             }
 
