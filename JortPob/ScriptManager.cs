@@ -68,7 +68,7 @@ namespace JortPob
 
         public Script.Flag GetFlag(Designation designation, string name)
         {
-            var lookupKey = Script.FormatFlagLookupKey(designation, name); 
+            var lookupKey = Script.FormatFlagLookupKey(designation, name);
 
             Flag f = common.FindFlagByLookupKey(lookupKey);
             if (f != null) { return f; }
@@ -83,12 +83,28 @@ namespace JortPob
         }
 
         /* Sets up race and faction flags that are used globally and interact with specific papyrus calls */
+        /* Also some other globalish vars we need for scripts like Reputation and CrimeLevel */
         public void SetupSpecialFlags(ESM esm)
         {
             List<JsonNode> raceJson = [.. esm.GetAllRecordsByType(ESM.Type.Race)];
 
             // A short for reputation, maybe could fit in a byte but lets just be safe here
             common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Flag.Designation.Reputation, "Reputation", 0);
+
+            // Crime gold to be paid to guards
+            common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Flag.Designation.CrimeLevel, "CrimeLevel", 0);
+
+            // Crime absolved flag
+            common.CreateFlag(Flag.Category.Saved, Flag.Type.Bit, Flag.Designation.CrimeAbsolved, "CrimeAbsolved", 0); // not temp since load screen happens if going to jail
+
+            // Temp flag that is set when a guard is talking to the player, used to control some guard aggro stuff
+            common.CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.GuardIsGreeting, "GuardIsGreeting", 0);
+
+            // Temp flag that is set true when a player is talking with an npc, used to prevent idle/hello lines from nearby npcs while you are talking with someone
+            common.CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.PlayerIsTalking, "PlayerIsTalking", 0);
+
+            // Temp flag that is set true when a player is sneaking
+            Script.Flag playerIsSneakingFlag = common.CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.PlayerIsSneaking, "PlayerIsSneaking", 0);
 
             // One flag for each race. Single bit. Name of the flag to identify it by is the same as the enum name from NpcContent.Race
             // Reason for doing 10 bits instead of a single byte is because I don't want to set an eventvalueflag from HKS becasue lua is a cursed language
@@ -114,8 +130,22 @@ namespace JortPob
                 hksJankGen += $"\t\tif BURN_SCAR_VALUE == {(int)raceEnum} then\r\n\t\t\tact(DEBUG_PRINT, \"{raceEnum.ToString()}\")\r\n\t\t\tact(SetEventFlag, \"{flag.id}\", 1)\r\n\t\tend\r\n";
             }
 
+            string hksSneakShitcode = $""""
+
+                                          -- literally just writing if the player is sneaking or not to an emevd flag
+                                          if env(IsCOMPlayer) == FALSE then
+                                              if c_IsStealth == TRUE then
+                                                  act(10003, "{playerIsSneakingFlag.id}", 1)
+                                              else
+                                                  act(10003, "{playerIsSneakingFlag.id}", 0)
+                                              end
+                                          end
+
+
+                                      """";
+
             hksFile = hksFile.Replace("-- $$ INJECT JANK UPDATE FUNCTION HERE $$ --", $"{hksJankStart}{hksJankGen}{hksJankEnd}");
-            hksFile = hksFile.Replace("-- $$ INJECT JANK UPDATE CALL HERE $$ --", $"{hksJankCall}");
+            hksFile = hksFile.Replace("-- $$ INJECT JANK UPDATE CALL HERE $$ --", $"{hksSneakShitcode}{hksJankCall}");
             string hksOutPath = $"{Const.OUTPUT_PATH}action\\script\\c0000.hks";
             if (System.IO.File.Exists(hksOutPath)) { System.IO.File.Delete(hksOutPath); }
             if (!System.IO.Directory.Exists(Path.GetDirectoryName(hksOutPath))) { System.IO.Directory.CreateDirectory(Path.GetDirectoryName(hksOutPath)); }
@@ -128,6 +158,54 @@ namespace JortPob
                 common.CreateFlag(Flag.Category.Saved, Flag.Type.Byte, Flag.Designation.FactionReputation, faction.id, 0);
                 common.CreateFlag(Flag.Category.Saved, Flag.Type.Byte, Flag.Designation.FactionRank, faction.id, 0);
                 common.CreateFlag(Flag.Category.Saved, Flag.Type.Bit, Flag.Designation.FactionExpelled, faction.id, 0);
+            }
+        }
+
+        /* This event is triggered when player goes to jail or pays fines to a guard. Resets all crime stuff like npc hostility and crime gold */
+        public void GenerateGlobalCrimeAbsolvedEvent()
+        {
+            List<Script.Flag> allFlags = new();
+            allFlags.AddRange(common.flags);
+            foreach (Script script in scripts)
+            {
+                allFlags.AddRange(script.flags);
+            }
+
+            Script.Flag eventFlag = common.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, "GlobalAbsolveCrimeEvent");
+            EMEVD.Event absolveEvent = new();
+            absolveEvent.ID = eventFlag.id;
+
+            Script.Flag absolveFlag = GetFlag(Script.Flag.Designation.CrimeAbsolved, "CrimeAbsolved");
+            absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {absolveFlag.id});"));  // if absolve flag set
+
+            Script.Flag crimeLevel = GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
+            absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"EventValueOperation({crimeLevel.id}, {crimeLevel.Bits()}, 0, 0, 1, 5);")); // 5 is CalculationType.Assign
+
+            int delayCounter = 0; // if you do to much in a single frame the game crashes so every hundred flags we wait a frame
+            foreach (Script.Flag flag in allFlags)
+            {
+                if (flag.designation != Script.Flag.Designation.Hostile) { continue; }
+                absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {flag.id}, OFF);"));
+
+                if(delayCounter++ > 100)
+                {
+                    absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"WaitFixedTimeFrames(1);"));
+                    delayCounter = 0;
+                }
+            }
+
+            absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"SetEventFlag(TargetEventFlagType.EventFlag, {absolveFlag.id}, OFF);"));
+            absolveEvent.Instructions.Add(common.AUTO.ParseAdd($"EndUnconditionally(EventEndType.Restart);")); // restart so its ready to go again when the player fucks up
+
+            common.emevd.Events.Add(absolveEvent);
+            common.init.Instructions.Add(common.AUTO.ParseAdd($"InitializeEvent(0, {eventFlag.id})"));  // initialize in common
+        }
+
+        public void GenerateAreaEvents()
+        {
+            foreach(Script script in scripts)
+            {
+                script.GenerateCrimeEvents();
             }
         }
 

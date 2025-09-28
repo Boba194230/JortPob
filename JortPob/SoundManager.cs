@@ -22,14 +22,14 @@ namespace JortPob
             public readonly Dialog.DialogRecord dialog;
             public readonly Dialog.DialogInfoRecord info;
             public readonly string line;
-            public readonly uint lineId;
+            public readonly string hashName;
             public readonly NpcContent npc;
-            public SAMData(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, uint lineId, NpcContent npc)
+            public SAMData(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
             {
                 this.dialog = dialog;
                 this.info = info;
                 this.line = line;
-                this.lineId = lineId;
+                this.hashName = hashName;
                 this.npc = npc;
             }
         }
@@ -72,11 +72,11 @@ namespace JortPob
         }
 
         /* Adds lines to a queue so we can do multithreaded tts gen on them */
-        public string GenerateLine(DialogRecord dialog, DialogInfoRecord info, string line, uint lineId, NpcContent npc)
+        public string GenerateLine(DialogRecord dialog, DialogInfoRecord info, string line, string hashName, NpcContent npc)
         {
-            SAMData dat = new(dialog, info, line, lineId, npc);
+            SAMData dat = new(dialog, info, line, hashName, npc);
             samQueue.Add(dat);
-            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{lineId}.wem";
+            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}.wem";
         }
 
         /* Writes all soundbanks to given dir */

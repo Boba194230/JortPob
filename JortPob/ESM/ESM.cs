@@ -148,7 +148,7 @@ namespace JortPob
 
                 if (type == Type.Dialogue)
                 {
-                    string idstr = record["id"].ToString();
+                    string idstr = record["id"].ToString().Trim();
                     string typestr = idstr.Replace(" ", "");
                     string diatype = record["dialogue_type"].ToString();
                     typestr = new String(typestr.Where(c => c != '-' && (c < '0' || c > '9')).ToArray());
@@ -196,6 +196,17 @@ namespace JortPob
             exterior = cells[0];
             interior = cells[1];
             landscapesByCoordinate = new();
+
+            /* Load and set defaults for all global variables listed in the ESM */
+            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
+            foreach (JsonNode jsonNode in globalVarJson)
+            {
+                string id = jsonNode["id"].GetValue<string>();
+                string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
+                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); continue; }
+                int value = jsonNode["value"]["data"].GetValue<int>();
+                scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
+            }
 
             /* Post processing of local variables. */
             /* Local variables need to be created and initialized as a fixed "unset" value */
@@ -344,10 +355,10 @@ namespace JortPob
                 List<DialogInfoRecord> infos = new();
                 foreach(DialogInfoRecord info in dialogRecord.infos)
                 {
-                    if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Flee) { continue; } // discarding this for now
-                    if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
-                    if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Intruder) { continue; } // discarding this for now
 
                     // Check if the npc meets all static requirements for this dialog line. this includes resolving some filter to see if they can ever pass

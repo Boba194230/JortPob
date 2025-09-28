@@ -49,7 +49,7 @@ namespace JortPob
             if(npcParamMap.ContainsKey(content.id)) { return npcParamMap[content.id]; }
 
             int id = nextNpcParamId += 10;
-            param.GenerateNpcParam(text, id, content);
+            param.GenerateNpcParam(id, content);
             npcParamMap.Add(content.id, id);
             return id;
         }
@@ -105,7 +105,8 @@ namespace JortPob
                         /* Debug voice acting using SAM */
                         string wemFile;
                         uint nxtid = (uint)(info.id + i);
-                        if (Const.USE_SAM) { wemFile = sound.GenerateLine(dia, info, line, nxtid, content); }
+                        string hashName = $"{(uint)info.text.GetStableHashCode()}+{i}"; // Get the hash of the actual text string for this line, it will be our unique identier and filename for the cached wav/wem
+                        if (Const.USE_SAM) { wemFile = sound.GenerateLine(dia, info, line, hashName, content); }
                         else { wemFile = Const.DEFAULT_DIALOG_WEM; }
 
                         // If this is not the first line in a talkparam group we must generate with sequential ids!
@@ -119,15 +120,16 @@ namespace JortPob
 
                 if (topicData.talks.Count > 0) { data.Add(topicData); } // if no valid lines for a topic, discard
             }
-            param.GenerateTalkParam(text, data);
+            param.GenerateTalkParam(data);
 
             int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}{msbIdList[0]:D2}{(msbIdList[0]==60?0:msbIdList[1]):D2}");  // i know guh guhhhhh
 
             Script areaScript = scriptManager.GetScript(msbIdList[0], msbIdList[1], msbIdList[2], msbIdList[3]); // get area script for this npc
 
             areaScript.RegisterNpcHostility(content);  // setup hostility flag/event
+            areaScript.RegisterNpcHello(content);      // setup hello flags and turntoplayer script
 
-            DialogESD dialogEsd = new(esm, scriptManager, text, areaScript, (uint)esdId, content, data);
+            DialogESD dialogEsd = new(esm, scriptManager, param, text, areaScript, (uint)esdId, content, data);
             string pyPath = $"{Const.CACHE_PATH}esd\\t{esdId}.py";
             string esdPath = $"{Const.CACHE_PATH}esd\\t{esdId}.esd";
             dialogEsd.Write(pyPath);

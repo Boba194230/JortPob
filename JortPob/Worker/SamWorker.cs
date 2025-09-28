@@ -35,9 +35,11 @@ namespace JortPob.Worker
             for(int i = start;i<Math.Min(datas.Count(), end);i++)
             {
                 SoundManager.SAMData dat = datas[i];
-                sam.Generate(dat.dialog, dat.info, dat.line, dat.lineId, dat.npc);
+                sam.Generate(dat.dialog, dat.info, dat.line, dat.hashName, dat.npc);
                 Lort.TaskIterate(); // Progress bar update
             }
+
+            sam.Dispose();
 
             IsDone = true;
             ExitCode = 0;
@@ -70,6 +72,7 @@ namespace JortPob.Worker
 
                 if (done)
                     break;
+                Thread.Yield();
             }
         }
     }

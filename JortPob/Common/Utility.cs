@@ -110,7 +110,7 @@ namespace JortPob.Common
                 {
                     if(concat != "") { recombined.Add(concat); }
                     concat = line;
-                    Lort.Log($"## WARNING ## Line exceeds character limit: {text}", Lort.Type.Debug);
+                    //Lort.Log($"## WARNING ## Line exceeds character limit: {text}", Lort.Type.Debug);
                 }
                 else if(concat.Length + line.Length <= Const.MAX_CHAR_PER_TALK)
                 {

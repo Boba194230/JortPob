@@ -24,8 +24,8 @@ namespace JortPob
             ScriptManager scriptManager = new();                                                // Manages EMEVD scripts
             ESM esm = new ESM(scriptManager);                                               // Morrowind ESM parse and partial serialization
             Cache cache = Cache.Load(esm);                                                  // Load existing cache (FAST!) or generate a new one (SLOW!)
-            Paramanager param = new();                                                        // Class for managing PARAM files
             TextManager text = new();                                                           // Manages FMG text files
+            Paramanager param = new(text);                                                        // Class for managing PARAM files
             Layout layout = new(cache, esm, param, text, scriptManager);                          // Subdivides all content data from ESM into a more elden ring friendly format
             SoundManager sound = new();                                                         // Manages vcbanks
             NpcManager character = new(esm, sound, param, text, scriptManager);                 // Manages dialog esd
@@ -41,6 +41,9 @@ namespace JortPob
 
             /* Some quick setup stuff */
             scriptManager.SetupSpecialFlags(esm);
+
+            /* Create some needed text data that is ref'd later */
+            for (int i = 0; i < 100; i++) { text.AddTopic($"Disposition: {i}"); }
 
             /* Generate exterior msbs from layout */
             List<ResourcePool> msbs = new();
@@ -248,7 +251,7 @@ namespace JortPob
                             mpr.Rotation = Vector3.Zero;
                             mpr.RegionID = nextMPR++;
                             mpr.MapStudioLayer = 4294967295;
-                            mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(text, tile, cell, relative, paramId);
+                            mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(tile, cell, relative, paramId);
 
                             mpr.MapID = -1;
                             mpr.UnkE08 = 255;
@@ -450,7 +453,7 @@ namespace JortPob
                     mpr.Rotation = Vector3.Zero;
                     mpr.RegionID = nextMPR++;
                     mpr.MapStudioLayer = 4294967295;
-                    mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(text, group, chunk.cell, chunk.root, paramId);
+                    mpr.WorldMapPointParamID = param.GenerateWorldMapPoint(group, chunk.cell, chunk.root, paramId);
 
                     mpr.MapID = -1;
                     mpr.UnkE08 = 255;
@@ -539,7 +542,7 @@ namespace JortPob
                         Script.Flag debugEventFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugWarp");
                         EMEVD.Event debugWarpEvent = new(debugEventFlag.id);
 
-                        param.GenerateActionButtonParam(text, actionParamId, $"Debug Warp: {areaName}");
+                        param.GenerateActionButtonParam(actionParamId, $"Debug Warp: {areaName}");
                         debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugAsset.EntityID});"));
                         debugWarpEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"WarpPlayer({area.map}, {area.coordinate.x}, {area.coordinate.y}, 0, {area.warps[0].id}, 0)"));
 
@@ -570,7 +573,7 @@ namespace JortPob
                 debugMSB.Parts.Assets.Add(debugResetAsset);
 
                 Script.Flag debugResetFlag = debugScript.CreateFlag(Script.Flag.Category.Event, Script.Flag.Type.Bit, Script.Flag.Designation.Event, $"m{debugScript.map}_{debugScript.x}_{debugScript.y}_{debugScript.block}::DebugReset");
-                param.GenerateActionButtonParam(text, actionParamId, $"Debug: Reset Save Data!");
+                param.GenerateActionButtonParam(actionParamId, $"Debug: Reset Save Data!");
                 EMEVD.Event debugResetEvent = new(debugResetFlag.id);
                 debugResetEvent.Instructions.Add(debugScript.AUTO.ParseAdd($"IfActionButtonInArea(MAIN, {actionParamId}, {debugResetAsset.EntityID});"));
 
@@ -612,6 +615,10 @@ namespace JortPob
             /* Write ESD bnds */
             character.Write();
 
+            /* Generate some needed scripts after msb gen */
+            scriptManager.GenerateAreaEvents();
+            scriptManager.GenerateGlobalCrimeAbsolvedEvent();
+
             /* Generate some params and write to file */
             Lort.Log($"Creating PARAMs...", Lort.Type.Main);
             param.GeneratePartDrawParams();
@@ -619,10 +626,11 @@ namespace JortPob
             param.GenerateAssetRows(cache.emitters);
             param.GenerateAssetRows(cache.liquids);
             param.GenerateMapInfoParam(layout);
-            param.GenerateActionButtonParam(text, 1500, "Enter");
-            param.GenerateActionButtonParam(text, 1501, "Exit");
-            param.SetAllMapLocation(text);
-            param.GenerateCustomCharacterCreation(text);
+            param.GenerateActionButtonParam(1500, "Enter");
+            param.GenerateActionButtonParam(1501, "Exit");
+            param.GenerateActionButtonParam(6010, "Pickpocket");
+            param.SetAllMapLocation();
+            param.GenerateCustomCharacterCreation();
             param.KillMapHeightParams();    // murder kill
             param.Write();
 

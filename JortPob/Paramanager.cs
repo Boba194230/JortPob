@@ -81,13 +81,20 @@ namespace JortPob
             WORLD_MAP_PLACE_NAME_PARAM_ST, WORLD_MAP_POINT_PARAM_ST, WWISE_VALUE_TO_STR_CONVERT_PARAM_ST
         }
 
+        public readonly TextManager textManager;
+
         public readonly Dictionary<ParamType, FsParam> param;
 
         public short terrainDrawParamID;
         private Dictionary<int, int> lodPartDrawParamIDs; // first int is the index of the array from Const.ASSET_LOD_VALUES, second int is the param row id
+        private int nextMessageParam;
 
-        public Paramanager()
+        public Paramanager(TextManager textManager)
         {
+            this.textManager = textManager;
+
+            nextMessageParam = 3000;
+
             SoulsFormats.BND4 paramBnd = SoulsFormats.SFUtil.DecryptERRegulation(Utility.ResourcePath(@"misc\regulation.bin"));
             string[] files = Directory.GetFiles(Utility.ResourcePath(@"misc\paramdefs"));
 
@@ -474,7 +481,7 @@ namespace JortPob
             }
         }
 
-        public void GenerateTalkParam(TextManager textManager, List<NpcManager.TopicData> topicData)
+        public void GenerateTalkParam(List<NpcManager.TopicData> topicData)
         {
             FsParam talkParam = param[ParamType.TalkParam];
             
@@ -521,7 +528,7 @@ namespace JortPob
             }
         }
 
-        public void GenerateNpcParam(TextManager textManager, int id, NpcContent npc)
+        public void GenerateNpcParam(int id, NpcContent npc)
         {
             FsParam npcParam = param[ParamType.NpcParam];
             FsParam.Row row = CloneRow(npcParam[523010000], npc.name, id); // 523010000 is white mask varre
@@ -533,10 +540,10 @@ namespace JortPob
             AddRow(npcParam, row);
         }
 
-        public void GenerateActionButtonParam(TextManager textManager, int id, string text)
+        public void GenerateActionButtonParam(int id, string text)
         {
             FsParam actionParam = param[ParamType.ActionButtonParam];
-            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is the prompt to pickup runes
+            FsParam.Row row = CloneRow(actionParam[1000], text, id); // 1000 is pick up runes prompt
 
             int textId = textManager.AddActionButton(text);
 
@@ -549,7 +556,7 @@ namespace JortPob
         }
 
         /* Set all map placenames to "Morrowind" for now. Later we can edit the map mask and setup the regions properly */
-        public void SetAllMapLocation(TextManager textManager)
+        public void SetAllMapLocation()
         {
             int textId = textManager.AddLocation("Morrowind");
 
@@ -564,7 +571,7 @@ namespace JortPob
         }
 
         /* Generate or get an already generated worldmappoint to be used as a placename. Not for actual map icons! */
-        public int GenerateWorldMapPoint(TextManager textManager, BaseTile tile, Cell cell, Vector3 relative, int id)
+        public int GenerateWorldMapPoint(BaseTile tile, Cell cell, Vector3 relative, int id)
         {
             FsParam worldMapPointParam = param[ParamType.WorldMapPointParam];
             FsParam.Row row = CloneRow(worldMapPointParam[61423600], $"{cell.name} placename", id); // 61423600 is limgrave church of elleh placename
@@ -590,7 +597,7 @@ namespace JortPob
         }
 
         /* Same as above but for interiors */
-        public int GenerateWorldMapPoint(TextManager textManager, InteriorGroup group, Cell cell, Vector3 relative, int id)
+        public int GenerateWorldMapPoint(InteriorGroup group, Cell cell, Vector3 relative, int id)
         {
             FsParam worldMapPointParam = param[ParamType.WorldMapPointParam];
             FsParam.Row row = CloneRow(worldMapPointParam[61423600], $"{cell.name} placename", id); // 61423600 is limgrave church of elleh placename
@@ -615,9 +622,47 @@ namespace JortPob
             return id;
         }
 
+        public int GenerateMessage(string title, string text)
+        {
+            FsParam messageParam = param[ParamType.TutorialParam];
+            FsParam.Row row = CloneRow(messageParam[1010], text[..Math.Min(32, text.Length)], nextMessageParam); // 1010 is the tutorial row for using items
+            int textId = textManager.AddTutorial(title, text);
+
+            row["menuType"].Value.SetValue((byte)100);
+            row["triggerType"].Value.SetValue((byte)0);
+            row["repeatType"].Value.SetValue((byte)1);
+            row["imageId"].Value.SetValue((ushort)0);
+            row["unlockEventFlagId"].Value.SetValue((uint)0);
+            row["textId"].Value.SetValue(textId);
+
+            AddRow(messageParam, row);
+
+            nextMessageParam += 10;
+            return row.ID;
+        }
+
+        public int GenerateNotification(string text)
+        {
+            FsParam messageParam = param[ParamType.TutorialParam];
+            FsParam.Row row = CloneRow(messageParam[1010], text[..Math.Min(32, text.Length)], nextMessageParam); // 1010 is the tutorial row for using items
+            int textId = textManager.AddTutorial(string.Empty, text);
+
+            row["menuType"].Value.SetValue((byte)0);
+            row["triggerType"].Value.SetValue((byte)0);
+            row["repeatType"].Value.SetValue((byte)1);
+            row["imageId"].Value.SetValue((ushort)0);
+            row["unlockEventFlagId"].Value.SetValue((uint)0);
+            row["textId"].Value.SetValue(textId);
+
+            AddRow(messageParam, row);
+
+            nextMessageParam += 10;
+            return row.ID;
+        }
+
         /* Setup both the class and race params. These are refered to as BaseChrParam (origin) FaceParam (base template) */
         /* also edits CharMakeMenuListItemParam and CharMakeMenuTopParam for text on the char creation screen */
-        public void GenerateCustomCharacterCreation(TextManager textManager)
+        public void GenerateCustomCharacterCreation()
         {
             // Race stuff
             int[] charMakeMenuListItemParam_Races = new int[] { 240, 241, 242, 243, 244, 245, 246, 247, 248, 249 };

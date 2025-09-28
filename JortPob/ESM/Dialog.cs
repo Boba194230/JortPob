@@ -1,6 +1,4 @@
-﻿using HKLib.hk2018.hkaiCollisionAvoidance;
-using HKLib.hk2018.hkAsyncThreadPool;
-using JortPob.Common;
+﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +32,7 @@ namespace JortPob
             public DialogRecord(Type type, string id, Script.Flag flag)
             {
                 this.type = type;
-                this.id = id;
+                this.id = id.StartsWith("Greeting")?"Greeting":id; // change 'Greeting #' to just 'Greeting' for sanity reasons
                 this.flag = flag;
 
                 infos = new();
@@ -306,7 +304,7 @@ namespace JortPob
                                     case DialogFilter.Function.FactionRankDifference:
                                         {
                                             if (npcContent.faction == null) { return "False"; } // static false return if npc is not in a faction
-                                            Script.Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, playerFaction);
+                                            Script.Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, npcContent.faction);
                                             return $"(GetEventFlagValue({rvar.id}, {rvar.Bits()}) - {rank+1}) {filter.OperatorSymbol()} {filter.value}";
                                         }
                                     case DialogFilter.Function.RankRequirement:
@@ -357,8 +355,13 @@ namespace JortPob
                                         }
                                     case DialogFilter.Function.PcReputation:
                                         {
-                                            Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.Reputation, "Reputation");
+                                            Flag rvar = scriptManager.GetFlag(Script.Flag.Designation.Reputation, "Reputation");  // grab player reputation flag
                                             return $"GetEventFlagValue({rvar.id}, {rvar.Bits()}) {filter.OperatorSymbol()} {filter.value}";
+                                        }
+                                    case DialogFilter.Function.PcCrimeLevel:
+                                        {
+                                            Flag cvar = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel"); // grab crime gold flag
+                                            return $"GetEventFlagValue({cvar.id}, {cvar.Bits()}) {filter.OperatorSymbol()} {filter.value}";
                                         }
                                     case DialogFilter.Function.Level:
                                         {
@@ -588,7 +591,7 @@ namespace JortPob
 
             /* Creates code for a dialog esd to execute when the dialoginfo that this dialogpapyrus is owned by gets played */
             private static List<String> debugUnsupportedPapyrusCallLogging = new();
-            public string GenerateEsdSnippet(ScriptManager scriptManager, NpcContent npcContent, uint esdId, int indent)
+            public string GenerateEsdSnippet(Paramanager paramanager, ScriptManager scriptManager, NpcContent npcContent, uint esdId, int indent)
             {
                 // Takes any mixed numeric parameter and converts it to an esd friendly format. for example  "1 + 2 + crimeGold + 7" or "crimeGold - valueValue" or just "5"
                 string ParseParameters(string[] parameters, int startIndex)
@@ -684,6 +687,11 @@ namespace JortPob
                                 lines.Add(code);
                                 break;
                             }
+                        case PapyrusCall.Type.MessageBox:
+                            {
+                                scriptManager.common.GetOrRegisterMessage(paramanager, "Message", call.parameters[0]);
+                                break;
+                            }
                         case PapyrusCall.Type.RemoveItem:
                             {
                                 // Gold specifically handled as souls so its diffo from other item checks
@@ -729,12 +737,41 @@ namespace JortPob
                                 lines.Add(code);
                                 break;
                             }
+                        case PapyrusCall.Type.SetPcCrimeLevel:
+                            {
+                                Script.Flag cvar = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
+                                string code = $"SetEventFlagValue({cvar.id}, {cvar.Bits()}, {call.parameters[0]})";
+                                lines.Add(code);
+                                break;
+                            }
+                        case PapyrusCall.Type.PayFine:
+                            {
+                                Script.Flag aflag = scriptManager.GetFlag(Script.Flag.Designation.CrimeAbsolved, "CrimeAbsolved");
+                                Script.Flag crimeLevel = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
+                                string absolveCode = $"SetEventFlag({aflag.id}, FlagState.On);";  // setting this flag triggers a common event that clears all crime values
+                                string fineCode = $"SetEventFlagValue({crimeLevel.id}, {crimeLevel.Bits()}, 0)"; // seting crimelevel to zero here since if this value isnt cleared immidieatly it can cause guards to re-engage you
+                                lines.Add(absolveCode);
+                                lines.Add(fineCode);
+                                break;
+                            }
+                        case PapyrusCall.Type.GoToJail:
+                            {
+                                Script.Flag aflag = scriptManager.GetFlag(Script.Flag.Designation.CrimeAbsolved, "CrimeAbsolved");
+                                Script.Flag crimeLevel = scriptManager.GetFlag(Script.Flag.Designation.CrimeLevel, "CrimeLevel");
+                                string absolveCode = $"SetEventFlag({aflag.id}, FlagState.On);";  // setting this flag triggers a common event that clears all crime values
+                                string fineCode = $"SetEventFlagValue({crimeLevel.id}, {crimeLevel.Bits()}, 0)"; // seting crimelevel to zero here since if this value isnt cleared immidieatly it can cause guards to re-engage you
+                                lines.Add(absolveCode);
+                                lines.Add(fineCode);
+                                break;
+                            }
                         case PapyrusCall.Type.StartCombat:
                             {
                                 if (call.parameters[0].Trim() == "player")
                                 {
-                                    Flag hvar = scriptManager.GetFlag(Flag.Designation.Hostile, npcContent.entity.ToString());
-                                    string code = $"SetEventFlag({hvar.id}, FlagState.On)";
+                                    Flag var; // if a guard starts combat with a player its a crime, if its anyone else it's just them being angy at you
+                                    if (npcContent.IsGuard()) { var = scriptManager.GetFlag(Flag.Designation.CrimeEvent, npcContent.entity.ToString()); }
+                                    else { var = scriptManager.GetFlag(Flag.Designation.Hostile, npcContent.entity.ToString()); }
+                                    string code = $"SetEventFlag({var.id}, FlagState.On)";
                                     lines.Add(code);
                                     break;
                                 }
@@ -779,7 +816,7 @@ namespace JortPob
                     None, Journal, ModPcFacRep, ModDisposition, AddItem, RemoveItem, SetFight, StartCombat, Goodbye, Choice, AddTopic, RemoveSpell, ModReputation, ShowMap,
                     StartScript, Set, Disable, AddSpell, SetDisposition, PcJoinFaction, PcClearExpelled, PcRaiseRank, ModMercantile, Enable, ClearForceSneak,
                     AiWander, StopCombat, PcExpell, AiFollow, SetPcCrimeLevel, PayFineThief, ModStrength, MessageBox, PositionCell, AiFollowCell, ModFight,
-                    ModFactionReaction, AiFollowCellPlayer, PayFine, GotoJail, ModFlee, SetAlarm, AiTravel, PlaceAtPc, ModAxe, ClearInfoActor, Cast, ForceGreeting, RaiseRank,
+                    ModFactionReaction, AiFollowCellPlayer, PayFine, GoToJail, ModFlee, SetAlarm, AiTravel, PlaceAtPc, ModAxe, ClearInfoActor, Cast, ForceGreeting, RaiseRank,
                     PlaySound, SetHealth, SetFatigue, Lock, SetMercantile, SetHello, StopScript
                 }
 

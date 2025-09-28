@@ -1,6 +1,7 @@
 ﻿using JortPob.Common;
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 namespace JortPob
@@ -107,6 +108,8 @@ namespace JortPob
 
         public readonly bool services; // @TODO: STUB! NEED TO ACTUALLY PARSE AND USE THE INDIVIDUAL SERVICE TYPES
 
+        public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
+
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             name = record.json["name"].ToString();
@@ -134,6 +137,9 @@ namespace JortPob
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
         }
+
+        /* Return true if this npc is a generic guard that can arrest the player for crimes */
+        public bool IsGuard() { return job == "Guard" || job == "Ordinator Guard"; }
     }
 
     /* creatures, both leveled and non-leveled */
