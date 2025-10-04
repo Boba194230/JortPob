@@ -26,6 +26,23 @@ namespace JortPob
                 return "IfElapsedSeconds(MAIN, 0);"; // does not cause a frame of delay. i checked. effectively a nop
             }
 
+            // Little function to resolve a variable to a flag
+            Script.Flag GetFlagByVariable(string varName)
+            {
+                Script.Flag retFlag = null;
+                if (!varName.Contains("."))  // probably a local var of this object
+                {
+                    retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{varName}");
+                }
+                if (retFlag == null && varName.Contains(".")) // looks like it's actually a local var of a different object
+                {
+                    retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, varName); // look for it, if we dont find it we create it
+                    if (retFlag == null) { retFlag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Local, varName); }
+                }
+                if (retFlag == null) { retFlag = scriptManager.GetFlag(Script.Flag.Designation.Global, varName); } // maybe its a global var!
+                return retFlag;
+            }
+
             List<string> HandlePapyrus(Papyrus.Call call)
             {
                 switch (call)
@@ -51,17 +68,16 @@ namespace JortPob
                 switch (call.left.type)
                 {
                     case Call.Type.Variable:
+                        Script.Flag vflag = GetFlagByVariable(call.left.parameters[0]);
                         if (call.right.type == Call.Type.Literal)
                         {
-                            Script.Flag vflag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.left.parameters[0]}");
                             lines.Add(ResetConditionGroups());
                             lines.Add($"IfEventValue(OR_01, {vflag.id}, {vflag.Bits()}, {call.OperatorIndex()}, {call.right.parameters[0]});");
                             lines.Add($"SkipIfConditionGroupStateUncompiled({pass.Count()}, FAIL, OR_01);");
                         }
                         else if (call.right.type == Call.Type.Variable)
                         {
-                            Script.Flag vflag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.left.parameters[0]}");
-                            Script.Flag lflag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.right.parameters[0]}");
+                            Script.Flag lflag = GetFlagByVariable(call.right.parameters[0]);
                             lines.Add(ResetConditionGroups());
                             lines.Add($"IfCompareEventValues(OR_01, {vflag.id}, {vflag.Bits()}, {call.OperatorIndex()}, {lflag.id}, {lflag.Bits()});");
                             lines.Add($"SkipIfConditionGroupStateUncompiled({pass.Count()}, FAIL, OR_01);");
@@ -82,7 +98,7 @@ namespace JortPob
                         {
                             Script.Flag jflag = scriptManager.GetFlag(Script.Flag.Designation.Journal, call.left.parameters[0]); // find journal flag, create it if doesn't exist yet
                             if (jflag == null) { jflag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Byte, Script.Flag.Designation.Journal, call.left.parameters[0]); }
-                            Script.Flag lflag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.right.parameters[0]}");
+                            Script.Flag lflag = GetFlagByVariable(call.right.parameters[0]);
                             lines.Add(ResetConditionGroups());
                             lines.Add($"IfCompareEventValues(OR_01, {jflag.id}, {jflag.Bits()}, {call.OperatorIndex()}, {lflag.id}, {lflag.Bits()});");
                             lines.Add($"SkipIfConditionGroupStateUncompiled({pass.Count()}, FAIL, OR_01);");
@@ -116,8 +132,13 @@ namespace JortPob
                         if (call.right.type == Call.Type.Literal)
                         {
                             bool flagState = int.Parse(call.right.parameters[0]) == 0;
-                            Script.Flag rflag = scriptManager.GetFlag(Script.Flag.Designation.PlayerRuneCount, "PlayerRuneCount");
-                            lines.Add($"SkipIfEventFlag({pass.Count()}, {(flagState ? "ON" : "OFF")}, TargetEventFlagType.EventFlag, {rflag.id});");
+                            Script.Flag dflag = scriptManager.GetFlag(Script.Flag.Designation.Disabled, content.entity.ToString());
+                            if(dflag == null)  // currently we dont have disable code for assets so they dont have disable flags. skip
+                            {
+                                lines.Add($"SkipUnconditionally({(flagState?0:pass.Count())})");
+                                break;
+                            }
+                            lines.Add($"SkipIfEventFlag({pass.Count()}, {(flagState ? "ON" : "OFF")}, TargetEventFlagType.EventFlag, {dflag.id});");
                         }
                         else { Lort.Log($"## BAD CONDITIONAL ## {papyrus.id}->{call.type} [{call.left.type} ? {call.right.type}]", Lort.Type.Debug); }
                         break;
@@ -148,7 +169,7 @@ namespace JortPob
                             else if (call.right.type == Call.Type.Variable)
                             {
                                 Script.Flag gflag = scriptManager.GetFlag(Script.Flag.Designation.PlayerRuneCount, "PlayerRuneCount");
-                                Script.Flag lflag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.right.parameters[0]}");
+                                Script.Flag lflag = GetFlagByVariable(call.right.parameters[0]);
                                 lines.Add(ResetConditionGroups());
                                 lines.Add($"IfCompareEventValues(OR_01, {gflag.id}, {gflag.Bits()}, {call.OperatorIndex()}, {lflag.id}, {lflag.Bits()});");
                                 lines.Add($"SkipIfConditionGroupStateUncompiled({pass.Count()}, FAIL, OR_01);");
@@ -235,23 +256,6 @@ namespace JortPob
                                 }
                             }
 
-                            // Little function to resolve a variable to a flag
-                            Script.Flag GetFlagByVariable(string varName)
-                            {
-                                Script.Flag retFlag = null;
-                                if(!varName.Contains("."))  // probably a local var of this object
-                                {
-                                    retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, $"{content.id}.{call.parameters[0]}");
-                                }
-                                if (retFlag == null && call.parameters[0].Contains(".")) // looks like it's actually a local var of a different object
-                                {
-                                    retFlag = scriptManager.GetFlag(Script.Flag.Designation.Local, call.parameters[0]); // look for it, if we dont find it we create it
-                                    if (retFlag == null) { retFlag = scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Local, call.parameters[0]); }
-                                }
-                                if (retFlag == null) { retFlag = scriptManager.GetFlag(Script.Flag.Designation.Global, call.parameters[0]); } // maybe its a global var!
-                                return retFlag;
-                            }
-
                             // Resolve those operations as best as we can
                             Script.Flag lflag = GetFlagByVariable(call.parameters[0]);
                             foreach ((string op, Call call) operation in operations)
@@ -300,6 +304,7 @@ namespace JortPob
                     case Call.Type.Disable:
                         {
                             Script.Flag dvar = scriptManager.GetFlag(Script.Flag.Designation.Disabled, content.entity.ToString());
+                            if(dvar == null) { break; } // currently, disabilng assets is unsupported and so the flag doesnt exist. meaning we need to pass here. fixme later
                             lines.Add($"SetEventFlag(TargetEventFlagType.EventFlag, {dvar.id}, ON);");
                             lines.Add($"ChangeCharacterEnableState({content.entity.ToString()}, 0);");
                             break;

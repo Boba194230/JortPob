@@ -10,6 +10,7 @@ using System.Text.Json.Schema;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static HKLib.hk2018.hkSerialize.CompatTypeParentInfo;
+using static JortPob.Papyrus;
 
 namespace JortPob
 {
@@ -145,12 +146,56 @@ namespace JortPob
             return RecursiveCheck(scope);
         }
 
+        /* Looks through a papyrus script and check if it has any variables with names that match the given list */
+        public bool HasVariable(List<string> vars)
+        {
+            bool CheckCall(Call call)
+            {
+                if (call.type == Call.Type.Variable)
+                {
+                    if (vars.Contains(call.parameters[0].ToLower())) { return true; }
+                }
+
+                if (call.type == Call.Type.Set)
+                {
+                    foreach (string parameter in call.parameters)
+                    {
+                        if (vars.Contains(parameter.ToLower())) { return true; }
+                    }
+                }
+
+                return false;
+            }
+
+            bool RecursiveCheck(Scope scope)
+            {
+                foreach (Call call in scope.calls)
+                {
+                    if (call is Conditional)
+                    {
+                        Conditional conditional = (Conditional)call;
+                        if (CheckCall(conditional.left)) { return true; }
+                        if (CheckCall(conditional.right)) { return true; }
+                        if (RecursiveCheck(conditional.pass)) { return true; }
+                        if (RecursiveCheck(conditional.fail)) { return true; }
+                    }
+                    else
+                    {
+                        if (CheckCall(call)) { return true; }
+                    }
+                }
+                return false;
+            }
+
+            return RecursiveCheck(scope);
+        }
+
         /* Looks through a papyrus script and check if it has any literals with negative integers in them */
         public bool HasSignedInt()
         {
             bool CheckCall(Call call)
             {
-                if (call.type == Call.Type.Set || call.type == Call.Type.Literal)
+                if (call.type == Call.Type.Set)
                 {
                     foreach (string parameter in call.parameters)
                     {
@@ -159,6 +204,14 @@ namespace JortPob
                         if (val < 0) { return true; }
                     }
                 }
+
+                if(call.type == Call.Type.Literal)
+                {
+                    int val = 0;
+                    int.TryParse(call.parameters[0], out val);
+                    if (val < 0) { return true; }
+                }
+
                 return false;
             }
 

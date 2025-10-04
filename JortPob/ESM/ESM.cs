@@ -196,12 +196,13 @@ namespace JortPob
             landscapesByCoordinate = new();
 
             /* Load and set defaults for all global variables listed in the ESM */
+            List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
             List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
             foreach (JsonNode jsonNode in globalVarJson)
             {
                 string id = jsonNode["id"].GetValue<string>();
                 string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
-                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); continue; }
+                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); globalVarFloats.Add(id.ToLower()); continue; }
                 int value = jsonNode["value"]["data"].GetValue<int>();
                 scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
             }
@@ -216,6 +217,7 @@ namespace JortPob
                     Papyrus papyrus = new(jsonNode);
                     if (papyrus.HasCall(Papyrus.Call.Type.Float)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS FLOAT", Lort.Type.Debug); continue; }  // discard scripts with float vars in it for sanity
                     if (papyrus.HasSignedInt()) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS SIGNED INT", Lort.Type.Debug); continue; } // discard scripts with negative numbers
+                    if (papyrus.HasVariable(globalVarFloats)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS GLOBALVAR FLOAT", Lort.Type.Debug); continue; } // discard scripts that reference a float globalvariable
                     scripts.Add(papyrus);
                 }
                 catch { Lort.Log($" ## FAILED TO PARSE SCRIPT :: {jsonNode["id"].GetValue<string>()}", Lort.Type.Debug); }
