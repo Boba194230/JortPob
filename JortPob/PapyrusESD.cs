@@ -7,6 +7,7 @@ using static JortPob.Papyrus;
 
 namespace JortPob
 {
+    /* Big stub! We may end up using this at some point but for the moment I am going to plan on avoiding ESD for papyrus. See PapyrusEMEVD for the real implementation */
     public class PapyrusESD
     {
         private readonly ESM esm;
@@ -115,9 +116,7 @@ namespace JortPob
 
         private string Indent(int indent)
         {
-            string s = "";
-            for (int i = 0; i < indent*4; i++) { s += " "; }
-            return s;
+            return new String(' ', indent * 4);
         }
     }
 }

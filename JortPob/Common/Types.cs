@@ -61,7 +61,7 @@ namespace JortPob.Common
     // copy paste from stack overflow : https://stackoverflow.com/questions/36845430/persistent-hashcode-for-strings
     public static class StringExtensionMethods
     {
-        public static int GetStableHashCode(this string str)
+        public static int GetStableHash(this string str)
         {
             unchecked
             {
@@ -78,6 +78,14 @@ namespace JortPob.Common
 
                 return hash1 + (hash2 * 1566083941);
             }
+        }
+
+        public static string GetMD5Hash(this string str)
+        {
+            System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create();
+            byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes(str);
+            byte[] hashBytes = md5.ComputeHash(inputBytes);
+            return Convert.ToHexString(hashBytes);
         }
     }
 

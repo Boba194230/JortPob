@@ -32,7 +32,7 @@ namespace JortPob
             public DialogRecord(Type type, string id, Script.Flag flag)
             {
                 this.type = type;
-                this.id = id.StartsWith("Greeting")?"Greeting":id; // change 'Greeting #' to just 'Greeting' for sanity reasons
+                this.id = id.StartsWith("Greeting") ? "Greeting" : id; // change 'Greeting #' to just 'Greeting' for sanity reasons
                 this.flag = flag;
 
                 infos = new();
@@ -766,10 +766,10 @@ namespace JortPob
                             {
                                 if (call.parameters[0].Trim() == "player")
                                 {
-                                    Flag var; // if a guard starts combat with a player its a crime, if its anyone else it's just them being angy at you
-                                    if (npcContent.IsGuard()) { var = scriptManager.GetFlag(Flag.Designation.CrimeEvent, npcContent.entity.ToString()); }
-                                    else { var = scriptManager.GetFlag(Flag.Designation.Hostile, npcContent.entity.ToString()); }
-                                    string code = $"SetEventFlag({var.id}, FlagState.On)";
+                                    Flag hvar; // if a guard starts combat with a player its a crime, if its anyone else it's just them being angy at you
+                                    if (npcContent.IsGuard()) { hvar = scriptManager.GetFlag(Flag.Designation.CrimeEvent, npcContent.entity.ToString()); }
+                                    else { hvar = scriptManager.GetFlag(Flag.Designation.Hostile, npcContent.entity.ToString()); }
+                                    string code = $"SetEventFlag({hvar.id}, FlagState.On)";
                                     lines.Add(code);
                                     break;
                                 }

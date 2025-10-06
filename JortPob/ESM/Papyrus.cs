@@ -484,9 +484,8 @@ namespace JortPob
             public Conditional(string line) : base(line)
             {
                 string l = "", r = "";
-                for (int i=0;i< parameters.Count();i++)
+                foreach(string p in parameters)
                 {
-                    string p = parameters[i];
                     if(p == "==" || p == "!=" || p == ">" || p == "<" || p == ">=" || p == "<=" || p == "=") { op = p; }
                     else if(op == null && p.Contains(" ")) { l += $"\"{p}\" "; }
                     else if(op == null) { l += $"{p} "; }
