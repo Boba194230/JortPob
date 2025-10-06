@@ -49,7 +49,7 @@ namespace JortPob
             if(npcParamMap.ContainsKey(content.id)) { return npcParamMap[content.id]; }
 
             int id = nextNpcParamId += 10;
-            param.GenerateNpcParam(text, id, content);
+            param.GenerateNpcParam(id, content);
             npcParamMap.Add(content.id, id);
             return id;
         }
@@ -100,15 +100,19 @@ namespace JortPob
                         SoundBank.Sound snd = sound.FindSound(content, info.id + i); // look for a generated wem sound that matches the npc (race/sex) and dialog line (dialoginforecord id)
 
                         // Use an existing wem and talkparam we already generated because it's a match
-                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); }
+                        if (snd != null) { talkRows.Add(bankInfo.bank.AddSound(snd)); continue; } // and continue here
+
+                        /* Debug voice acting using SAM */
+                        string wemFile;
+                        uint nxtid = (uint)(info.id + i);
+                        string hashName = $"{info.text.GetMD5Hash()}+{i}"; // Get the hash of the actual text string for this line, it will be our unique identier and filename for the cached wav/wem
+                        if (Const.USE_SAM) { wemFile = sound.GenerateLine(dia, info, line, hashName, content); }
+                        else { wemFile = Const.DEFAULT_DIALOG_WEM; }
+
                         // If this is not the first line in a talkparam group we must generate with sequential ids!
-                        else if (talkRows.Count() > 0)
-                        {
-                            uint nxtid = (uint)(talkRows[0] + i);
-                            talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line, nxtid));
-                        }
+                        if (talkRows.Count() > 0) { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line, nxtid)); }
                         // Make a new sound and talkparam row because no suitable match was found!
-                        else { talkRows.Add(bankInfo.bank.AddSound(@"sound\test_sound.wav", info.id + i, line)); }
+                        else { talkRows.Add(bankInfo.bank.AddSound(wemFile, info.id + i, line)); }
                     }
                     // The parmanager function will automatically skip duplicates when addign talkparam rows so we don't need to do anything here. the esd gen needs those dupes so ye
                     topicData.talks.Add(new(info, talkRows, lines));
@@ -116,15 +120,16 @@ namespace JortPob
 
                 if (topicData.talks.Count > 0) { data.Add(topicData); } // if no valid lines for a topic, discard
             }
-            param.GenerateTalkParam(text, data);
+            param.GenerateTalkParam(data);
 
             int esdId = int.Parse($"{bankInfo.id.ToString("D3")}{bankInfo.uses++.ToString("D2")}{msbIdList[0]:D2}{(msbIdList[0]==60?0:msbIdList[1]):D2}");  // i know guh guhhhhh
 
             Script areaScript = scriptManager.GetScript(msbIdList[0], msbIdList[1], msbIdList[2], msbIdList[3]); // get area script for this npc
 
             areaScript.RegisterNpcHostility(content);  // setup hostility flag/event
+            areaScript.RegisterNpcHello(content);      // setup hello flags and turntoplayer script
 
-            DialogESD dialogEsd = new(esm, scriptManager, text, areaScript, (uint)esdId, content, data);
+            DialogESD dialogEsd = new(esm, scriptManager, param, text, areaScript, (uint)esdId, content, data);
             string pyPath = $"{Const.CACHE_PATH}esd\\t{esdId}.py";
             string esdPath = $"{Const.CACHE_PATH}esd\\t{esdId}.esd";
             dialogEsd.Write(pyPath);

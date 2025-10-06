@@ -298,6 +298,29 @@ namespace JortPob
                 text.SetLocation(textId, "Interior");
             }
 
+            /* Handle npc hasWitness flag */ // this check is very similar to and patially entwined with Script.GenerateCrimeEvents() and the ESD state HANDLECRIME
+            /* We can't determine witnesses at runtime so we just do some test now and determine if an npc has witneses to report crimes to */
+            void CheckWitnesses(List<NpcContent> npcs)
+            {
+                foreach (NpcContent npc in npcs)
+                {
+                    if (npc.alarm >= 50 || npc.IsGuard()) { npc.hasWitness = true; continue; } // will report crimes themselves
+                    foreach (NpcContent other in npcs)
+                    {
+                        if (npc == other) { continue; } // dont' self succ
+
+                        // guards get bonus range because I said so
+                        if (other.IsGuard() && System.Numerics.Vector3.Distance(npc.position, other.position) < 23) { npc.hasWitness = true; break; }
+                        if (other.alarm >= 50 && System.Numerics.Vector3.Distance(npc.position, other.position) < 12) { npc.hasWitness = true; break; }
+                    }
+                }
+            }
+
+            foreach (Tile tile in tiles) { CheckWitnesses(tile.npcs); }
+            foreach (InteriorGroup group in interiors) {
+                foreach (InteriorGroup.Chunk chunk in group.chunks) { CheckWitnesses(chunk.npcs); }
+            }
+
             /* Handling npc/creature death and respawn flags */
 
             // Dead by type list.

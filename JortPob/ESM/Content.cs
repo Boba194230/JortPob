@@ -1,6 +1,7 @@
 ﻿using JortPob.Common;
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 
 namespace JortPob
@@ -14,6 +15,7 @@ namespace JortPob
         public readonly ESM.Type type;
 
         public uint entity;  // entity id, usually 0
+        public readonly string papyrus; // papyrus script id if it has one (usually null)
         public Vector3 relative;
         public Int2 load; // if a piece of content needs tile load data this is where it's stored
 
@@ -30,6 +32,8 @@ namespace JortPob
 
             type = record.type;
             entity = 0;
+
+            papyrus = record.json["script"] != null && record.json["script"].GetValue<string>().Trim() != "" ? record.json["script"].GetValue<string>() : null;
 
             float x = float.Parse(json["translation"][0].ToString());
             float z = float.Parse(json["translation"][1].ToString());
@@ -107,6 +111,8 @@ namespace JortPob
 
         public readonly bool services; // @TODO: STUB! NEED TO ACTUALLY PARSE AND USE THE INDIVIDUAL SERVICE TYPES
 
+        public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
+
         public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             name = record.json["name"].ToString();
@@ -134,6 +140,9 @@ namespace JortPob
 
             rotation += new Vector3(0f, 180f, 8);  // models are rotated during conversion, placements like this are rotated here during serializiation to match
         }
+
+        /* Return true if this npc is a generic guard that can arrest the player for crimes */
+        public bool IsGuard() { return job == "Guard" || job == "Ordinator Guard"; }
     }
 
     /* creatures, both leveled and non-leveled */

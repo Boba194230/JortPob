@@ -1,7 +1,4 @@
-﻿using HKLib.hk2018.hk;
-using HKLib.hk2018.hkaiCollisionAvoidance.Solver;
-using HKLib.hk2018.hke;
-using JortPob.Common;
+﻿using JortPob.Common;
 using JortPob.Worker;
 using SoulsFormats;
 using System;
@@ -36,6 +33,7 @@ namespace JortPob
         public List<DialogRecord> dialog;
         public List<Faction> factions;
         public List<Cell> exterior, interior;
+        public List<Papyrus> scripts;
 
         public ESM(ScriptManager scriptManager)
         {
@@ -76,6 +74,7 @@ namespace JortPob
 
                 /* Convert esm to a json file using tes3conv */
                 Lort.Log($"Creating 'cache\\morrowind.json' ...", Lort.Type.Main);
+                if(!System.IO.Directory.Exists(Const.CACHE_PATH)) { System.IO.Directory.CreateDirectory(Const.CACHE_PATH); }
                 ProcessStartInfo convStartInfo = new(Utility.ResourcePath(@"tools\Tes3Conv\tes3conv.exe"), $"-c \"{esmPath}\" \"{jsonPath}\"")
                 {
                     WorkingDirectory = Utility.ResourcePath(@"tools\Tes3Conv"),
@@ -147,7 +146,7 @@ namespace JortPob
 
                 if (type == Type.Dialogue)
                 {
-                    string idstr = record["id"].ToString();
+                    string idstr = record["id"].ToString().Trim();
                     string typestr = idstr.Replace(" ", "");
                     string diatype = record["dialogue_type"].ToString();
                     typestr = new String(typestr.Where(c => c != '-' && (c < '0' || c > '9')).ToArray());
@@ -196,27 +195,32 @@ namespace JortPob
             interior = cells[1];
             landscapesByCoordinate = new();
 
-            /* Post processing of local variables. */
-            /* Local variables need to be created and initialized as a fixed "unset" value */
-            /* We cannot simply instance local vars on the fly as some contexts that are looking for them need to know if they exists (filters for examlpe) */
-            /* So we do a quick scan through all papyrus dialog snippets and papyrus scripts (@TODO that part) to find them and create them now */
-            foreach (DialogRecord topic in dialog)
+            /* Load and set defaults for all global variables listed in the ESM */
+            List<string> globalVarFloats = new(); //make a list of variable names that are very bad no good
+            List<JsonNode> globalVarJson = [.. GetAllRecordsByType(ESM.Type.GlobalVariable)];
+            foreach (JsonNode jsonNode in globalVarJson)
             {
-                foreach (DialogInfoRecord info in topic.infos)
+                string id = jsonNode["id"].GetValue<string>();
+                string type = jsonNode["value"]["type"].GetValue<string>().ToLower();
+                if (type != "short") { Lort.Log($" ## ERROR ## DISCARDING UNSUPPORTED GLOBALVAR {id} OF TYPE {type}", Lort.Type.Debug); globalVarFloats.Add(id.ToLower()); continue; }
+                int value = jsonNode["value"]["data"].GetValue<int>();
+                scriptManager.common.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Short, Script.Flag.Designation.Global, id, (uint)value);
+            }
+
+            /* Process papyrus scripts */
+            scripts = new();
+            List<JsonNode> scriptJsons = [.. GetAllRecordsByType(ESM.Type.Script)];
+            foreach(JsonNode jsonNode in scriptJsons)
+            {
+                try
                 {
-                    if (info.script != null)
-                    {
-                        foreach (DialogPapyrus.PapyrusCall call in info.script.calls)
-                        {
-                            if (call.type == DialogPapyrus.PapyrusCall.Type.Set)
-                            {
-                                if(!call.parameters[0].Contains(".")) { continue; } // if the variable name doesn't contain a '.' then it's a global not a local
-                                Script.Flag lvar = scriptManager.GetFlag(Flag.Designation.Local, call.parameters[0]);
-                                if(lvar == null) { scriptManager.common.CreateFlag(Flag.Category.Saved, Flag.Type.Short, Flag.Designation.Local, call.parameters[0], (uint)Utility.Pow(2, (uint)Flag.Type.Short) - 1); }
-                            }
-                        }
-                    }
+                    Papyrus papyrus = new(jsonNode);
+                    if (papyrus.HasCall(Papyrus.Call.Type.Float)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS FLOAT", Lort.Type.Debug); continue; }  // discard scripts with float vars in it for sanity
+                    if (papyrus.HasSignedInt()) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS SIGNED INT", Lort.Type.Debug); continue; } // discard scripts with negative numbers
+                    if (papyrus.HasVariable(globalVarFloats)) { Lort.Log($" ## DISCARDED SCRIPT ->  {jsonNode["id"].GetValue<string>()} :: HAS GLOBALVAR FLOAT", Lort.Type.Debug); continue; } // discard scripts that reference a float globalvariable
+                    scripts.Add(papyrus);
                 }
+                catch { Lort.Log($" ## FAILED TO PARSE SCRIPT :: {jsonNode["id"].GetValue<string>()}", Lort.Type.Debug); }
             }
 
             /* Load faction info from esm */
@@ -331,6 +335,15 @@ namespace JortPob
             return null;
         }
 
+        public Papyrus GetPapyrus(string id)
+        {
+            foreach (Papyrus papyrus in scripts)
+            {
+                if (papyrus.id == id) { return papyrus; }
+            }
+            return null;
+        }
+
         /* Get dialog and character data for building esd */
         public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, NpcContent npc)
         {
@@ -343,10 +356,10 @@ namespace JortPob
                 List<DialogInfoRecord> infos = new();
                 foreach(DialogInfoRecord info in dialogRecord.infos)
                 {
-                    if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Hello) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Flee) { continue; } // discarding this for now
-                    if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
-                    if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Thief) { continue; } // discarding this for now
+                    //if (info.type == DialogRecord.Type.Idle) { continue; } // discarding this for now
                     if (info.type == DialogRecord.Type.Intruder) { continue; } // discarding this for now
 
                     // Check if the npc meets all static requirements for this dialog line. this includes resolving some filter to see if they can ever pass

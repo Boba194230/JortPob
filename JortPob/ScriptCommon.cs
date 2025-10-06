@@ -19,15 +19,17 @@ namespace JortPob
         public Events AUTO;
 
         public readonly EMEVD emevd, func;
+        public readonly EMEVD.Event init;
 
         public List<Flag> flags;
         private Dictionary<Flag.Category, uint> flagUsedCounts;
 
         public enum Event
         {
-            LoadDoor, SpawnHandler, NpcHostilityHandler
+            LoadDoor, SpawnHandler, NpcHostilityHandler, Message, Hello
         }
         public readonly Dictionary<Event, uint> events;
+        public readonly Dictionary<int, Flag> messages;  // hash of message text as key, value is flag that when set to true triggers a message to display
 
         /**
          * This is just used to speed up searches for flags. It is a 1:1 mapping, so duplicate designated/named
@@ -42,6 +44,13 @@ namespace JortPob
 
             emevd = EMEVD.Read(Utility.ResourcePath(@"script\common.emevd.dcx"));
             func = EMEVD.Read(Utility.ResourcePath(@"script\common_func.emevd.dcx"));
+            init = emevd.Events[0];
+
+            // Bytes here are raw string data that points to the filenames of common_func and common_macro
+            emevd.StringData = new byte[] { 78, 0, 58, 0, 92, 0, 71, 0, 82, 0, 92, 0, 100, 0, 97, 0, 116, 0, 97, 0, 92, 0, 80, 0, 97, 0, 114, 0, 97, 0, 109, 0, 92, 0, 101, 0, 118, 0, 101, 0, 110, 0, 116, 0, 92, 0, 99, 0, 111, 0, 109, 0, 109, 0, 111, 0, 110, 0, 95, 0, 102, 0, 117, 0, 110, 0, 99, 0, 46, 0, 101, 0, 109, 0, 101, 0, 118, 0, 100, 0, 0, 0, 78, 0, 58, 0, 92, 0, 71, 0, 82, 0, 92, 0, 100, 0, 97, 0, 116, 0, 97, 0, 92, 0, 80, 0, 97, 0, 114, 0, 97, 0, 109, 0, 92, 0, 101, 0, 118, 0, 101, 0, 110, 0, 116, 0, 92, 0, 99, 0, 111, 0, 109, 0, 109, 0, 111, 0, 110, 0, 95, 0, 109, 0, 97, 0, 99, 0, 114, 0, 111, 0, 46, 0, 101, 0, 109, 0, 101, 0, 118, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            emevd.LinkedFileOffsets = new() { 0, 82 };
+
+            messages = new();
 
             flags = new();
             flagsByLookupKey = new();
@@ -140,6 +149,84 @@ namespace JortPob
 
             func.Events.Add(hostileEvent);
             events.Add(Event.NpcHostilityHandler, hostileEventFlag.id);
+
+            /* Create an event for handling npc hello turntoplayer from esd */
+            Flag helloEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:Hello");
+            EMEVD.Event helloEvent = new(helloEventFlag.id);
+
+            pc = 0;
+
+            string[] helloEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",  // wait for flag to trigger
+                //$"RotateCharacter({NextParameterName()}, 10000, -1, false);",   // turn character to face the player
+                $"IfEventFlag(MAIN, OFF, TargetEventFlagType.EventFlag, {NextParameterName()});",  // wait for flag to go back to off
+                $"EndUnconditionally(EventEndType.Restart);",    // restart so it's ready to go again if needed
+            };
+
+            for (int i = 0; i < helloEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(helloEventRaw[i], i);
+                helloEvent.Parameters.AddRange(newPs);
+                helloEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(helloEvent);
+            events.Add(Event.Hello, helloEventFlag.id);
+
+            /* Create an event for handling messages */
+            Flag messageEventFlag = CreateFlag(Flag.Category.Event, Flag.Type.Bit, Flag.Designation.Event, $"CommonFunc:Message");
+            EMEVD.Event messageEvent = new(messageEventFlag.id);
+
+            pc = 0;
+
+            string[] messageEventRaw = new string[]
+            {
+                $"IfEventFlag(MAIN, ON, TargetEventFlagType.EventFlag, {NextParameterName()});",  // wait for flag to trigger this popup to be set to true
+                $"ShowTutorialPopup({NextParameterName()}, true, true);",   // show popup
+                $"SetEventFlag(0, {NextParameterName()}, OFF)",              // set flag back to false
+                $"EndUnconditionally(EventEndType.Restart);",    // restart so it's ready to go again if needed
+            };
+
+            for (int i = 0; i < messageEventRaw.Length; i++)
+            {
+                (EMEVD.Instruction instr, List<EMEVD.Parameter> newPs) = AUTO.ParseAddArg(messageEventRaw[i], i);
+                messageEvent.Parameters.AddRange(newPs);
+                messageEvent.Instructions.Add(instr);
+            }
+
+            func.Events.Add(messageEvent);
+            events.Add(Event.Message, messageEventFlag.id);
+        }
+
+        /* Register a tutorial popup message with given text */
+        /* Returns a flag that when set to true shows the message */
+        /* Stores a mapping of texthashes to prevent duplicates. */
+        public Flag GetOrRegisterMessage(Paramanager paramanager, string title, string text)
+        {
+            int textHash = (title+text).GetStableHash();
+            if (messages.ContainsKey(textHash)) { return messages[textHash]; }
+
+            Flag messageFlag = CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.Message, text);
+            int param = paramanager.GenerateMessage(title, text);
+            init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.Message]}, {messageFlag.id}, {param}, {messageFlag.id});"));
+            messages.Add(textHash, messageFlag);
+            return messageFlag;
+        }
+
+        /* Register a right side of the screen non pausing message with given text */
+        /* Returns a flag that when set to true shows the notification */
+        /* Stores a mapping of texthashes to prevent duplicates. */
+        public Flag GetOrRegisterNotification(Paramanager paramanager, string text)
+        {
+            int textHash = text.GetStableHash();
+            if (messages.ContainsKey(textHash)) { return messages[textHash]; }
+
+            Flag messageFlag = CreateFlag(Flag.Category.Temporary, Flag.Type.Bit, Flag.Designation.Message, text);
+            int param = paramanager.GenerateNotification(text);
+            init.Instructions.Insert(0, AUTO.ParseAdd($"InitializeCommonEvent(0, {events[ScriptCommon.Event.Message]}, {messageFlag.id}, {param}, {messageFlag.id});"));
+            messages.Add(textHash, messageFlag);
+            return messageFlag;
         }
 
         /* There are some bugs with this system. It defo wastes some flag space. We have lots tho. Maybe fix later */

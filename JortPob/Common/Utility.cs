@@ -62,7 +62,7 @@ namespace JortPob.Common
                 bool isPunc = c == '.' || c == ';' || c == '?' || c == '!';
                 if (isPunc) { lines.Add(concat); concat = ""; }
             }
-            lines.Add(concat.Trim());
+            if (concat.Trim() != "") { lines.Add(concat.Trim()); }
 
             // See if any lines desperately need to be split on a comma or in the middle of a sentence
             for(int i=0;i<lines.Count();i++)
@@ -93,6 +93,11 @@ namespace JortPob.Common
 
                     string a = $"{line.Substring(0, splitAt+1).Trim()}{(onSpace?"--":"")}";
                     string b = $"{(onSpace ? "--" : "")}{line.Substring(splitAt+1, line.Length - splitAt - 1).Trim()}";
+
+                    // Add lines back in the right spot
+                    lines.RemoveAt(i);
+                    lines.Insert(i, b);
+                    lines.Insert(i, a);
                 }
             }
 
@@ -105,7 +110,7 @@ namespace JortPob.Common
                 {
                     if(concat != "") { recombined.Add(concat); }
                     concat = line;
-                    Lort.Log($"## WARNING ## Line exceeds character limit: {text}", Lort.Type.Debug);
+                    //Lort.Log($"## WARNING ## Line exceeds character limit: {text}", Lort.Type.Debug);
                 }
                 else if(concat.Length + line.Length <= Const.MAX_CHAR_PER_TALK)
                 {
@@ -123,15 +128,49 @@ namespace JortPob.Common
 
             return recombined;
         }
+
+        public static string[] StringAwareSplit(string text)
+        {
+            if(text.Trim() == "") { return new string[0]; } // empty string = emptry array
+
+            List<string> split = text.Split(" ").ToList();
+            List<string> recomb = new();
+            for (int i = 0; i < split.Count(); i++)
+            {
+                string s = split[i];
+                if (s.StartsWith("\""))
+                {
+                    if (s.Split("\"").Length - 1 == 2) { recomb.Add(s.Replace("\"", "")); }
+                    else
+                    {
+                        string itrNxt = split[++i];
+                        while (!itrNxt.Contains("\""))
+                        {
+                            itrNxt += $" {split[++i]}";
+                        }
+                        recomb.Add(($"{s} {itrNxt}").Replace("\"", ""));
+                    }
+                    continue;
+                }
+
+                recomb.Add(s);
+            }
+            return recomb.ToArray();
+        }
       
         public static string SanitizeTextForComment(string text)
         {
             return text.Replace("\r", "").Replace("\n", "");
         }
 
-        public static bool StringIsNumeric(string text)
+        public static bool StringIsInteger(string text)
         {
             return int.TryParse(text, out _);
+        }
+
+        public static bool StringIsFloat(string text)
+        {
+            return float.TryParse(text, out _);
         }
 
         public static bool StringIsOperator(string text)

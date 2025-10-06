@@ -10,6 +10,7 @@ namespace JortPob.Common
         public static string MORROWIND_PATH = Settable.Get("MORROWIND_PATH");
         public static string ELDEN_PATH = Settable.Get("ELDEN_PATH");
         public static string OUTPUT_PATH = Settable.Get("OUTPUT_PATH");
+        public static string WWISE_PATH = Settable.Get("WWISE_PATH");
         public static string CACHE_PATH = $"{OUTPUT_PATH}cache\\";
         public static string[] LOAD_ORDER = Settable.GetArray("LOAD_ORDER");
         #endregion
@@ -81,11 +82,27 @@ namespace JortPob.Common
         #region Papyrus
         public static readonly int ESD_STATE_HARDCODE_MODDISPOSITION = 45;
         public static readonly int ESD_STATE_HARDCODE_MODFACREP = 46;
-        public static readonly int ESD_STATE_HARDCODE_RANKREQUIREMENT = 49;
+        public static readonly int ESD_STATE_HARDCODE_PERSUADEMENU = 47;
+        public static readonly int ESD_STATE_HARDCODE_HANDLECRIME = 48;
+        public static readonly int ESD_STATE_HARDCODE_COMBATDIALOGSELECT = 49;
+        public static readonly int ESD_STATE_HARDCODE_COMBATTALK = 50;
+        public static readonly int ESD_STATE_HARDCODE_DOATTACKTALK = 51;
+        public static readonly int ESD_STATE_HARDCODE_DOHITTALK = 52;
+        public static readonly int ESD_STATE_HARDCODE_DOTHIEFTALK = 53;
+        public static readonly int ESD_STATE_HARDCODE_IDLETALK = 54;
+        public static readonly int ESD_STATE_HARDCODE_PICKPOCKET = 55;
+        public static readonly int ESD_STATE_HARDCODE_RANKREQUIREMENT = 56;
+        public static readonly int ESD_STATE_HARDCODE_CHOICE = 57;  // this one must be last as it can generate multiple ones after this number
+        public static readonly int CRIME_GOLD_PICKPOCKET = 50;
+        public static readonly int CRIME_GOLD_ASSAULT = 250;
+        public static readonly int CRIME_GOLD_RESIST = 100;
+        public static readonly int CRIME_GOLD_MURDER = 1000;
         #endregion
 
         #region Dialog
-        public static readonly int MAX_CHAR_PER_TALK = 160;
+        public static readonly bool USE_SAM = true; // very ultra mega hyper slow, only for stress testing dialog
+        public static readonly string DEFAULT_DIALOG_WEM = Utility.ResourcePath(@"sound\page_turn.wem");
+        public static readonly int MAX_CHAR_PER_TALK = 160;  // character limit in a line of dialog. prevents subtitle cutting off
         public static readonly int MAX_ESD_PER_VCBNK = 10;
         #endregion
 
@@ -101,7 +118,7 @@ namespace JortPob.Common
         public static readonly bool DEBUG_SKIP_ESD = false; // skip building dialog esd for npcs, can be slow
         public static readonly bool DEBUG_SKIP_NICE_WATER_CIRCLIFICATION = true; // slow as shit, skipping this saves about a minute per build
         public static readonly string DEBUG_EXCLUSIVE_CELL_BUILD_BY_NAME = null; // set to "null" to build entire map.
-        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] {-3, -10, -1, -8 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
+        public static readonly int[] DEBUG_EXCLUSIVE_BUILD_BY_BOX = new int[] { -3, -10, -1, -8 }; // also set to null to build entire map. format x1, y1, x2, y2. smaller values first, 1 = 1 cell, use cell coordinates
         // seyda neen area (small) = new int[] {-3, -10, -1, -8 }
         // seyda neen area (large) = new int[] { -5, -15, 5, -5 }
         // balmora area (small) = new int[] {-4, -3, -2, -1}
@@ -118,7 +135,7 @@ namespace JortPob.Common
 
             // if a cell name contains any of the strings in this list (even partial matches) we build it, otherwise skip.
             // set MATCHES to null if for proper normal building
-            string[] MATCHES = new[] { "Seyda Neen" }; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
+            string[] MATCHES = new[] {"Seyda Neen"}; // = new[] { "Seyda Neen", "Addamasartus", "Nimawia Grotto", "Samarys Ancestral Tomb", "Abaesen-Pulu Egg Mine" };
 
             if (MATCHES == null) { return true; }
 

@@ -1,8 +1,11 @@
-﻿using System;
-using JortPob.Common;
+﻿using JortPob.Common;
+using JortPob.Worker;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using static JortPob.Dialog;
+using static SoulsFormats.DRB.Shape;
 
 namespace JortPob
 {
@@ -12,11 +15,31 @@ namespace JortPob
         private readonly List<SoundBankInfo> banks;
         private readonly SoundBankGlobals globals;
 
+        private readonly SAM sam;
+        private readonly List<SAMData> samQueue;
+        public class SAMData
+        {
+            public readonly Dialog.DialogRecord dialog;
+            public readonly Dialog.DialogInfoRecord info;
+            public readonly string line;
+            public readonly string hashName;
+            public readonly NpcContent npc;
+            public SAMData(Dialog.DialogRecord dialog, Dialog.DialogInfoRecord info, string line, string hashName, NpcContent npc)
+            {
+                this.dialog = dialog;
+                this.info = info;
+                this.line = line;
+                this.hashName = hashName;
+                this.npc = npc;
+            }
+        }
+
         public SoundManager()
         {
             nextBankId = 100;
             banks = new();
             globals = new();
+            samQueue = new();
         }
 
         /* Either returns an existing bank meeting the requirements, or makes a new one */
@@ -48,9 +71,19 @@ namespace JortPob
             return null; // no match found
         }
 
+        /* Adds lines to a queue so we can do multithreaded tts gen on them */
+        public string GenerateLine(DialogRecord dialog, DialogInfoRecord info, string line, string hashName, NpcContent npc)
+        {
+            SAMData dat = new(dialog, info, line, hashName, npc);
+            samQueue.Add(dat);
+            return $"{Const.CACHE_PATH}dialog\\{npc.race}\\{npc.sex}\\{dialog.id}\\{hashName}\\{hashName}.wem";
+        }
+
         /* Writes all soundbanks to given dir */
         public void Write(string dir)
         {
+            SamWorker.Go(samQueue); // actually generate and convert wems
+
             Lort.Log($"Writing {banks.Count()} BNKs...", Lort.Type.Main);
             Lort.NewTask("Writing BNKs", banks.Count);
 
