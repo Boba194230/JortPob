@@ -19,8 +19,9 @@ namespace JortPob
     {
         public static void Convert()
         {
-            /* Startup logging */
-            Lort.Initialize();
+            /* Init */
+            Lort.Initialize(); // startup logging
+            Override.Initialize(); // load all override jsons
 
             /* Loading stuff */
             ScriptManager scriptManager = new();                                                // Manages EMEVD scripts
@@ -34,12 +35,6 @@ namespace JortPob
 
             // Helpers/shared values
             List<Tuple<Vector3, TerrainInfo>> emptyTerrainList = [];
-
-            /* Load overrides list for do not place @TODO: MAKE THIS A STATIC CLASS */
-            JsonNode jsonDoNotPlace = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\do_not_place.json")));
-            var doNotPlace = jsonDoNotPlace != null
-                ? jsonDoNotPlace.AsArray().Select(node => node.ToString().ToLower()).ToHashSet()
-                : [];
 
             /* Some quick setup stuff */
             scriptManager.SetupSpecialFlags(esm);
@@ -136,7 +131,7 @@ namespace JortPob
                 /* Add assets */
                 foreach (AssetContent content in tile.assets)
                 {
-                    if (doNotPlace.Contains(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
+                    if (Override.CheckDoNotPlace(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
 
                     /* Grab ModelInfo */
                     ModelInfo modelInfo = cache.GetModel(content.mesh, content.scale);
@@ -351,7 +346,7 @@ namespace JortPob
                     /* Add assets */
                     foreach (AssetContent content in chunk.assets)
                     {
-                        if (doNotPlace.Contains(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
+                        if (Override.CheckDoNotPlace(content.mesh.ToLower())) { continue; } // skip any meshes listed in the do_not_place override json
 
                         /* Grab ModelInfo */
                         ModelInfo modelInfo = cache.GetModel(content.mesh, content.scale);

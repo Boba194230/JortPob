@@ -8,6 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using WitchyFormats;
+using static JortPob.Override;
 
 namespace JortPob
 {
@@ -665,16 +666,15 @@ namespace JortPob
         public void GenerateCustomCharacterCreation()
         {
             // Race stuff
+            List<Override.PlayerRace> playerRaces = Override.GetCharacterCreationRaces();
             int[] charMakeMenuListItemParam_Races = new int[] { 240, 241, 242, 243, 244, 245, 246, 247, 248, 249 };
             int charMakeMenuListItemParam_Race_Gender_Offset = 20; // add this to above value to get the female version
-
-            JsonNode jsonRaces = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_race.json")));
 
             FsParam charMakeMenuListItemParam = param[ParamType.CharMakeMenuListItemParam];
             FsParam faceParam = param[ParamType.FaceParam];
             for (int i = 0; i < charMakeMenuListItemParam_Races.Count(); i++)
             {
-                JsonNode jsonRace = jsonRaces.AsArray()[i];
+                Override.PlayerRace playerRace = playerRaces[i];
 
                 // Texy menu entry rows
                 int raceRowIdMale = charMakeMenuListItemParam_Races[i];
@@ -683,10 +683,10 @@ namespace JortPob
                 FsParam.Row charMakemMenuListMaleRow = charMakeMenuListItemParam[raceRowIdMale];
                 FsParam.Row charMakemMenuListFemaleRow = charMakeMenuListItemParam[raceRowIdFemale];
 
-                int charMakemMenuListRowText = textManager.AddMenuText(jsonRace["race"].ToString(), jsonRace["description"].ToString());
+                int charMakemMenuListRowText = textManager.AddMenuText(playerRace.name, playerRace.description);
 
-                charMakemMenuListMaleRow.Name = $"Male {jsonRace["race"].GetValue<string>()}";   // row names for helpful debugging
-                charMakemMenuListFemaleRow.Name = $"Female {jsonRace["race"].GetValue<string>()}";
+                charMakemMenuListMaleRow.Name = $"Male {playerRace.name}";   // row names for helpful debugging
+                charMakemMenuListFemaleRow.Name = $"Female {playerRace.name}";
 
                 charMakemMenuListMaleRow["captionId"].Value.SetValue(charMakemMenuListRowText);
                 charMakemMenuListFemaleRow["captionId"].Value.SetValue(charMakemMenuListRowText);
@@ -695,17 +695,15 @@ namespace JortPob
                 FsParam.Row faceMaleRow = faceParam[(int)(charMakemMenuListMaleRow["value"].Value.Value)];
                 FsParam.Row faceFemaleRow = faceParam[(int)(charMakemMenuListFemaleRow["value"].Value.Value)];
 
-                byte raceId = byte.Parse(jsonRace["id"].ToString());  // these values match the enums in the NpcContent class
+                faceMaleRow.Name = $"Male {playerRace.name}";   // row names for helpful debugging
+                faceFemaleRow.Name = $"Female {playerRace.name}";
 
-                faceMaleRow.Name = $"Male {jsonRace["race"].GetValue<string>()}";   // row names for helpful debugging
-                faceFemaleRow.Name = $"Female {jsonRace["race"].GetValue<string>()}";
-
-                faceMaleRow["burn_scar"].Value.SetValue(raceId);  // the burn scars value is used as a race indentifier. this is picked up by scripts and reset to 0 on first game load
-                faceFemaleRow["burn_scar"].Value.SetValue(raceId);
+                faceMaleRow["burn_scar"].Value.SetValue(playerRace.id);  // the burn scars value is used as a race indentifier. this is picked up by scripts and reset to 0 on first game load
+                faceFemaleRow["burn_scar"].Value.SetValue(playerRace.id);
             }
 
             // Class stuff
-            JsonNode jsonClasses = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_class.json")));
+            List<Override.PlayerClass> playerClasses = Override.GetCharacterCreationClasses();
             FsParam baseChrSelectMenuParam = param[ParamType.BaseChrSelectMenuParam];
             FsParam charInitParam = param[ParamType.CharaInitParam];
 
@@ -713,25 +711,25 @@ namespace JortPob
             int[] charMakeMenuListItemParam_Classes = new int[] { 100200, 100201, 100202, 100203, 100204, 100205, 100206, 100207, 100208, 100209 };
             for (int i = 0; i < baseChrSelectMenuParam_Classes.Count(); i++)
             {
-                JsonNode jsonClass = jsonClasses.AsArray()[i];
+                Override.PlayerClass playerClass = playerClasses[i];
                 FsParam.Row baseClassRow = baseChrSelectMenuParam[baseChrSelectMenuParam_Classes[i]];
 
                 // Base class rows
-                int classTextId = textManager.AddMenuText(jsonClass["class"].GetValue<string>(), jsonClass["description"].GetValue<string>());
-                baseClassRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
+                int classTextId = textManager.AddMenuText(playerClass.name, playerClass.description);
+                baseClassRow.Name = playerClass.name;   // row names for helpful debugging
                 baseClassRow["textId"].Value.SetValue(classTextId);
 
                 // Texty menu entry rows
                 FsParam.Row charMakeMenuListClassRow = charMakeMenuListItemParam[charMakeMenuListItemParam_Classes[i]];
-                charMakeMenuListClassRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
+                charMakeMenuListClassRow.Name = playerClass.name;   // row names for helpful debugging
                 charMakeMenuListClassRow["captionId"].Value.SetValue(classTextId);
 
                 // Char init rows
                 FsParam.Row classRow = charInitParam[(int)(uint)baseClassRow["chrInitParam"].Value.Value];
                 FsParam.Row originRow = charInitParam[(int)(uint)baseClassRow["originChrInitParam"].Value.Value];
 
-                classRow.Name = jsonClass["class"].GetValue<string>();   // row names for helpful debugging
-                originRow.Name = jsonClass["class"].GetValue<string>();
+                classRow.Name = playerClass.name;   // row names for helpful debugging
+                originRow.Name = playerClass.name;
             }
 
             // Minor text tweaks
