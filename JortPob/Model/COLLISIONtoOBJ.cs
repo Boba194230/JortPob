@@ -115,9 +115,10 @@ namespace JortPob.Model
 
                     ObjV[] V = new ObjV[3];
 
-                    for (int i = 0; i < 3; i++)
+                    int[] tris = new int[3] { tri.v0, tri.v1, tri.v2 };
+
+                    foreach (int idx in tris)
                     {
-                        int idx = (i == 0) ? tri.v0 : (i == 1 ? tri.v1 : tri.v2);
 
                         // Position
                         Vector3 pos = mesh.Vertices[idx].ToNumeric();
@@ -154,7 +155,7 @@ namespace JortPob.Model
                         obj.vns.Add(norm);
                         obj.vts.Add(uvw);
 
-                        V[i] = new ObjV(obj.vs.Count - 1, obj.vts.Count - 1, obj.vns.Count - 1);
+                        V[idx] = new ObjV(obj.vs.Count - 1, obj.vts.Count - 1, obj.vns.Count - 1);
                     }
 
                     // Reverse winding order like original code

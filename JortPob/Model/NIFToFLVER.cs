@@ -3,6 +3,7 @@ using SoulsFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using TES3;
@@ -200,17 +201,10 @@ namespace JortPob.Model
 
             /* Load overrides list for collision */
             JsonNode json = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\static_collision.json")));
-            bool CheckOverride(string name)
-            {
-                foreach (JsonNode node in json.AsArray())
-                {
-                    if (node.ToString().ToLower() == name.ToLower()) { return true; }
-                }
-                return false;
-            }
+            HashSet<string> nodeNames = json.AsArray().ToList().Select(node => node.ToString().ToLower()).ToHashSet();
 
             /* Generate collision obj if the model contains a collision mesh */
-            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !CheckOverride(modelInfo.name))
+            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !nodeNames.Contains(modelInfo.name))
             {
                 /* Best guess for collision material */
                 Obj.CollisionMaterial matguess = Obj.CollisionMaterial.None;

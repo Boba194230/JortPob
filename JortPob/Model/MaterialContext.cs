@@ -415,8 +415,7 @@ namespace JortPob.Model
             material.MTD = matbin.SourcePath;
             material.Name = $"{matbinName}";
 
-            List<TextureInfo> info = new();
-            info.Add(new(diffuseTexture, $"textures\\{diffuseTexture}.tpf.dcx"));
+            List<TextureInfo> info = [new(diffuseTexture, $"textures\\{diffuseTexture}.tpf.dcx")];
 
             return new MaterialInfo(material, gx, layout, matbin, info, MaterialTemplate.Opaque);
         }
@@ -843,14 +842,17 @@ namespace JortPob.Model
                     Lort.TaskIterate();
                     continue;
                 }
-                if (path.ToLower().Contains(".tga"))
+                var lowerPath = path.ToLower();
+
+                if (lowerPath.Contains(".tga"))
                 {
-                    path = path.Replace(".tga", ".dds");
+                    path = lowerPath.Replace(".tga", ".dds");
                 }
-                if (path.ToLower().Contains(".bmp"))
+                else if (lowerPath.Contains(".bmp"))
                 {
-                    path = path.ToLower().Replace(".bmp", ".dds");
+                    path = lowerPath.Replace(".bmp", ".dds");
                 }
+
                 byte[] data = File.ReadAllBytes(path);
                 //for debugging
                 //Lort.Log($"Binding {path}", Lort.Type.Debug);
