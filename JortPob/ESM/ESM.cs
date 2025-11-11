@@ -67,7 +67,7 @@ namespace JortPob
                             UseShellExecute = false,
                             CreateNoWindow = true
                         };
-                        var mergeProcess = Process.Start(mergeStartInfo);
+                        using var mergeProcess = Process.Start(mergeStartInfo);
                         mergeProcess.WaitForExit();
                     }
                 }
@@ -81,7 +81,7 @@ namespace JortPob
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-                var convProcess = Process.Start(convStartInfo);
+                using var convProcess = Process.Start(convStartInfo);
                 convProcess.WaitForExit();
             }
             /* Process json */
