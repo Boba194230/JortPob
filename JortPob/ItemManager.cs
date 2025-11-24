@@ -200,11 +200,18 @@ namespace JortPob
                                     textManager.AddWeapon(weapon.row, def.text.name, def.text.description, infusion);
                                     if (def.text.enchant != null)
                                     {
-                                        for (int i = 0; i < def.text.enchant.Length; i++)
+                                        FsParam.Row infusedSourceRow = paramanager.GetRow(paramanager.param[Paramanager.ParamType.EquipParamWeapon], row);
+                                        int j = 0;
+                                        for (int i = 0; i < 3 && j < def.text.enchant.Length; i++)
                                         {
-                                            string enchant = def.text.enchant[i];
+                                            string fieldName = $"spEffectMsgId{i}";
+                                            int fieldValue = (int)infusedSourceRow[fieldName].Value.Value;
+
+                                            if (fieldValue != -1) { continue; }
+
+                                            string enchant = def.text.enchant[j++];
                                             int txtId = textManager.AddWeaponEffect(enchant);
-                                            SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, weapon.row, $"spEffectMsgId{i}", txtId);
+                                            SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, weapon.row, fieldName, txtId);
                                         }
                                     }
                                     if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, weapon.row, "iconId", iconManager.GetIconByRecord(id).id); }

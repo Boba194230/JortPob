@@ -5,7 +5,8 @@
   "useIcon": false,
   "text": {
     "name": "Daggy",
-    "description": "Woah! Daggerliciuos!"
+    "description": "Woah! Daggerliciuos!",
+    "enchant": [ "Daggery!" ]
   },
   "data": {
     "correctStrength": 125
