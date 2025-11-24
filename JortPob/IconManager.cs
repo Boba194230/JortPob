@@ -15,26 +15,31 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using TeximpNet.DDS;
 using static IronPython.Modules._ast;
+using static JortPob.IconManager.IconLayout;
+using static JortPob.SpeffManager.Speff.Effect;
 
 namespace JortPob
 {
     public class IconManager
     {
         public readonly List<IconInfo> icons;
+        public readonly List<BuffInfo> buffs;
 
         public ushort nextIconId = 19000; // all ids after this are free to use
+        public ushort nextBuffId = 20600; // all ids after this are free to use
 
         public IconManager(ESM esm)
         {
             if (Const.DEBUG_SKIP_ICONS) { return; }
 
+            /* Item Icons */
             Lort.Log($"Loading icons...", Lort.Type.Main);
             Lort.NewTask("Loading Icons", 1);
 
             icons = new();
             void FindIcons(ESM.Type recordType)
             {
-                foreach(JsonNode json in esm.GetAllRecordsByType(recordType))
+                foreach (JsonNode json in esm.GetAllRecordsByType(recordType))
                 {
                     if (json["icon"] != null && json["icon"].GetValue<string>().Trim() != "")
                     {
@@ -43,7 +48,7 @@ namespace JortPob
 
                         IconInfo iconInfo = GetIconByPath(iconPath);
 
-                        if(iconInfo == null)
+                        if (iconInfo == null)
                         {
                             iconInfo = new IconInfo(iconPath, nextIconId++);
                             iconInfo.referers.Add(recordId);
@@ -68,6 +73,21 @@ namespace JortPob
             FindIcons(ESM.Type.Probe);
             FindIcons(ESM.Type.Lockpick);
             FindIcons(ESM.Type.RepairItem);
+
+            /* Buff icons */
+            buffs = new();
+
+            foreach (JsonNode json in esm.GetAllRecordsByType(ESM.Type.MagicEffect))
+            {
+                if (json["icon"] != null && json["icon"].GetValue<string>().Trim() != "")
+                {
+                    string iconPath = json["icon"].GetValue<string>().ToLower();
+                    SpeffManager.Speff.Effect.MagicEffect magicEffect = (MagicEffect)System.Enum.Parse(typeof(MagicEffect), json["effect_id"].GetValue<string>());
+
+                    BuffInfo buffInfo = new(magicEffect, iconPath, nextBuffId++);
+                    buffs.Add(buffInfo);
+                }
+            }
         }
 
         /* This one is special, this is getting an icon based on a record that uses it. Multiple records can use the same icon so its a slow search */
@@ -109,6 +129,20 @@ namespace JortPob
             return null;
         }
 
+        public BuffInfo GetBuffByType(SpeffManager.Speff.Effect.MagicEffect type)
+        {
+            if (Const.DEBUG_SKIP_ICONS) { return null; }
+
+            foreach (BuffInfo buff in buffs)
+            {
+                if(buff.type == type)
+                {
+                    return buff;
+                }
+            }
+            return null;
+        }
+
         public void Write()
         {
             if (Const.DEBUG_SKIP_ICONS) { return; }
@@ -122,8 +156,8 @@ namespace JortPob
             const int ICON = 160;  // both width and height of individual icons
             const int FIRST_SHEET = 9;
 
-            Lort.Log($"Generating sheets for {icons.Count()} icons...", Lort.Type.Main);
-            Lort.NewTask("Stitching Icons", icons.Count());
+            Lort.Log($"Generating sheets for {icons.Count() + buffs.Count()} icons...", Lort.Type.Main);
+            Lort.NewTask("Stitching Icons", icons.Count() + buffs.Count());
 
             /* Load all icons into system.drawing.image objects */
             List<(IconInfo iconInfo, Bitmap bitmap)> bitmaps = new();
@@ -136,9 +170,9 @@ namespace JortPob
             }
 
             /* Make sheets */
-            List<(IconLayout layout, Bitmap bitmap)> sheets = new();
+            List<(Layout layout, Bitmap bitmap)> sheets = new();
             int i = 0; // icon index
-            for (int sheetIndex = 0; i < bitmaps.Count(); sheetIndex++)
+            for (int sheetIndex = 0; i < bitmaps.Count(); sheetIndex++)  // item icon sheets
             {
                 Bitmap sheet = new Bitmap(WIDTH, HEIGHT);
                 IconLayout layout = new($"SB_Icon_{(FIRST_SHEET + sheetIndex):D2}");
@@ -157,7 +191,7 @@ namespace JortPob
                             Bitmap bitmap = bitmaps[i].bitmap;
                             g.DrawImage(bitmap, x * (ICON + PAD), y * (ICON + PAD));
 
-                            layout.entries.Add(new(icon.id, new Int2(x * (ICON + PAD), y * (ICON + PAD)), new Int2(ICON, ICON)));
+                            layout.Add(icon.id, new Int2(x * (ICON + PAD), y * (ICON + PAD)), new Int2(ICON, ICON));
 
                             i++;
                             Lort.TaskIterate();
@@ -165,9 +199,58 @@ namespace JortPob
                     }
                 }
 
-                sheet.Save(@$"I:\SteamLibrary\steamapps\common\ELDEN RING\sheet_test{sheetIndex}.bmp"); // @TODO: DEBUG DELETE ME!
+                //sheet.Save(@$"I:\SteamLibrary\steamapps\common\ELDEN RING\sheet_test{sheetIndex}.bmp"); // @TODO: DEBUG DELETE ME!
                 sheets.Add((layout, sheet));
             }
+
+            /* Do buff icons for speffs to display */
+            const int BUFF_SHEET = 2;
+            const int BUFF_WIDTH = 1024;
+            const int BUFF_HEIGHT = 512;
+            const int BUFF_ROWS = 10;
+            const int BUFF_COLS = 20;
+            const int BUFF_PAD = 4;
+            const int BUFF = 40; // buff icons are a 40x40 square texture
+
+            /* Load all icons into system.drawing.image objects */
+            List<(BuffInfo buffInfo, Bitmap bitmap)> buffBitmaps = new();
+            foreach (BuffInfo buff in buffs)
+            {
+                byte[] ddsBytes = System.IO.File.ReadAllBytes($"{Const.MORROWIND_PATH}Data Files\\icons\\{buff.path}");
+                Bitmap buffBitmap = Common.DDS.DDStoBitmap(ddsBytes);
+                buffBitmap = Common.Utility.XbrzUpscale(buffBitmap, 4);
+                buffBitmap = Utility.ResizeBitmap(buffBitmap, BUFF, BUFF);
+                buffBitmaps.Add((buff, buffBitmap));
+            }
+
+            /* Make buff sheets */
+            Bitmap buffSheet = new Bitmap(BUFF_WIDTH, BUFF_HEIGHT);
+            BuffLayout buffLayout = new($"SB_Status_{BUFF_SHEET:D2}");
+
+            i = 0;
+            using (Graphics g = Graphics.FromImage(buffSheet))
+            {
+                g.Clear(Color.Empty);
+
+                for (int y = 0; y < BUFF_ROWS; y++)
+                {
+                    for (int x = 0; x < BUFF_COLS; x++)
+                    {
+                        if (i >= buffBitmaps.Count()) { break; } // Out of icons!
+
+                        BuffInfo buff = buffBitmaps[i].buffInfo;
+                        Bitmap buffBitmap = buffBitmaps[i].bitmap;
+                        g.DrawImage(buffBitmap, x * (BUFF + BUFF_PAD), y * (BUFF + BUFF_PAD));
+
+                        buffLayout.Add(buff.id, new Int2(x * (BUFF + BUFF_PAD), y * (BUFF + BUFF_PAD)), new Int2(BUFF, BUFF));
+
+                        i++;
+                        Lort.TaskIterate();
+                    }
+                }
+            }
+            buffSheet.Save(@$"I:\SteamLibrary\steamapps\common\ELDEN RING\buff_test_sheet.bmp"); // @TODO: DEBUG DELETE ME!
+            sheets.Add((buffLayout, buffSheet));
 
             /* Write sheets and layouts to bnds and tpfs */
             const string hiLayoutPath = @"menu\hi\01_common.sblytbnd.dcx";
@@ -180,7 +263,7 @@ namespace JortPob
                 TPF tpf = TPF.Read($"{Const.ELDEN_PATH}Game\\{tpfPath}");
                 BND4 bnd = BND4.Read($"{Const.ELDEN_PATH}Game\\{layoutPath}");
 
-                foreach ((IconLayout layout, Bitmap bitmap) tuple in sheets)
+                foreach ((Layout layout, Bitmap bitmap) tuple in sheets)
                 {
                     /* Add sheet to TPF */
                     TPF.Texture texture = new();
@@ -209,7 +292,7 @@ namespace JortPob
             AddSheets(lowLayoutPath, lowTpfPath, "Low"); Lort.TaskIterate();
 
             /* Clean up */
-            foreach ((IconLayout layout, Bitmap bitmap) tuple in sheets) { tuple.bitmap.Dispose(); }
+            foreach ((Layout layout, Bitmap bitmap) tuple in sheets) { tuple.bitmap.Dispose(); }
             foreach ((IconInfo iconInfo, Bitmap bitmap) tuple in bitmaps) { tuple.bitmap.Dispose(); }
 
             /* Do large icons for use in the description area */
@@ -313,21 +396,23 @@ namespace JortPob
             }
         }
 
-        public class IconLayout
+        public abstract class Layout
         {
             public readonly string name;
-            public readonly List<IconLayoutEntry> entries;
+            protected readonly List<LayoutEntry> entries;
 
-            public IconLayout(string name)
+            public Layout(string name)
             {
                 this.name = name;
                 entries = new();
             }
 
+            public abstract void Add(ushort id, Int2 position, Int2 size);
+
             public byte[] Write()
             {
                 string output = $"<TextureAtlas imagePath=\"{name}.png\">\r\n";
-                foreach(IconLayoutEntry entry in entries)
+                foreach (LayoutEntry entry in entries)
                 {
                     output += entry.Write();
                 }
@@ -349,22 +434,73 @@ namespace JortPob
                 return bytes;
             }
 
-            public class IconLayoutEntry
+            public abstract class LayoutEntry
             {
                 public readonly ushort id;
                 public Int2 position, size;
 
-                public IconLayoutEntry(ushort id, Int2 position, Int2 size)
+                public LayoutEntry(ushort id, Int2 position, Int2 size)
                 {
                     this.id = id;
                     this.position = position;
                     this.size = size;
                 }
 
-                public string Write()
+                public abstract string Write();
+            }
+
+            public class IconLayoutEntry : LayoutEntry
+            {
+                public IconLayoutEntry(ushort id, Int2 position, Int2 size) : base(id, position, size) { }
+
+                public override string Write()
                 {
                     return $"\t<SubTexture name=\"MENU_ItemIcon_{id:D5}.png\" x=\"{position.x}\" y=\"{position.y}\" width=\"{size.x}\" height=\"{size.y}\" half=\"0\"/>\r\n";
                 }
+            }
+
+            public class BuffLayoutEntry : LayoutEntry
+            {
+                public BuffLayoutEntry(ushort id, Int2 position, Int2 size) : base(id, position, size) { }
+
+                public override string Write()
+                {
+                    return $"\t<SubTexture name=\"MENU_StatusIcon_{id:D5}.png\" x=\"{position.x}\" y=\"{position.y}\" width=\"{size.x}\" height=\"{size.y}\" half=\"0\"/>\r\n";
+                }
+            }
+        }
+
+        public class IconLayout : Layout
+        {
+            public IconLayout(string name) : base(name) { }
+
+            public override void Add(ushort id, Int2 position, Int2 size)
+            {
+                entries.Add(new IconLayoutEntry(id, position, size));
+            }
+        }
+
+        public class BuffLayout : Layout
+        {
+            public BuffLayout(string name) : base(name) { }
+
+            public override void Add(ushort id, Int2 position, Int2 size)
+            {
+                entries.Add(new BuffLayoutEntry(id, position, size));
+            }
+        }
+
+        public class BuffInfo
+        {
+            public readonly SpeffManager.Speff.Effect.MagicEffect type;
+            public readonly string path;
+            public readonly ushort id;
+
+            public BuffInfo(SpeffManager.Speff.Effect.MagicEffect type, string path, ushort id)
+            {
+                this.type = type;
+                this.path = path.Replace(".tga", ".dds");  // esm stores texture paths pointing to a TGA but the actual file on disk is DDS
+                this.id = id;
             }
         }
     }

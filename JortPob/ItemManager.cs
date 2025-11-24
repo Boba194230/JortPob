@@ -1,4 +1,5 @@
 ﻿using JortPob.Common;
+using Microsoft.Scripting.Metadata;
 using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
@@ -22,8 +23,27 @@ namespace JortPob
             Weapon = 0,
             Armor = 1,
             Accessory = 2,
-            Enchant = 100    // enchant is an ash of war itemy thing
+            CustomWeapon = 6, // customweapon is a weapon that has a nonstandard skill or is upgraded
+            Enchant = 100     // enchant is an ash of war itemy thing
         }
+
+        public enum Infusion
+        {
+            None = 0,
+            Heavy = 100,
+            Keen = 200,
+            Quality = 300,
+            Fire = 400,
+            FlameArt = 500,  // I am not entirely sure what this is
+            Lightning = 600,
+            Sacred = 700,
+            Magic = 800,
+            Cold = 900,
+            Poison = 1000,
+            Blood = 1100,
+            Occult = 1200
+        }
+
         public readonly List<ItemInfo> items; // string is record if of item from MW. int is the row id of the item in Elden Ring, type is type of item in ER
 
         private Paramanager paramanager;
@@ -31,7 +51,7 @@ namespace JortPob
         private IconManager iconManager;
         private TextManager textManager;
 
-        private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId;
+        private int nextWeaponId, nextArmorId, nextAccessoryId, nextGoodsId, nextCustomWeaponId;
 
         public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
         {
@@ -46,6 +66,7 @@ namespace JortPob
             nextArmorId = 6000000;
             nextGoodsId = 30000;
             nextAccessoryId = 8500;
+            nextCustomWeaponId = 15000;
 
             /* Search all scripts for references to items. Items used by scripts are critical and must be created */
             List<Papyrus.Call> itemCalls = new();
@@ -130,50 +151,112 @@ namespace JortPob
                     /* Item id has a corresponding definition json file from overrides/items */   // this creates a new item for this id that is defined by data in the json file
                     if (def != null)
                     {
-                        ItemInfo it;
-                        switch(def.type)
+                        switch (def.type)
                         {
                             case Type.Weapon:
-                                it = new(def.id, Type.Weapon, nextWeaponId, value, scriptItem);
-                                SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamWeapon, def.id, def.row, nextWeaponId, def.data);
-                                textManager.AddWeapon(it.row, def.text.name, def.text.description);
-                                if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
+                                /* First check if this weapon has infusion rows, and if we need to copy them */
+                                FsParam.Row sourceRow = paramanager.GetRow(paramanager.param[Paramanager.ParamType.EquipParamWeapon], def.row);
+                                bool hasInfusionRows = (short)sourceRow["reinforceTypeId"].Value.Value == (short)0;
+                                bool needsInfusionRows;
+                                if (def.data.ContainsKey("reinforceTypeId"))
+                                {
+                                    needsInfusionRows = (int.Parse(def.data["reinforceTypeId"]) == 0);
+                                }
+                                else { needsInfusionRows = hasInfusionRows; }
+
+                                if (!hasInfusionRows && needsInfusionRows) { throw new Exception($"Item Def '{def.id}' is copying an uninfusable weapon but trying to give it infusion rows. This is impossible!"); }
+
+                                /* Make a list of what rows we are creating and the infusion type if applicable */
+                                List<(Infusion infusion, int row)> rowsToCopy = new();
+                                if (needsInfusionRows)
+                                {
+                                    foreach (Infusion infusion in Enum.GetValues(typeof(Infusion)))
+                                    {
+                                        rowsToCopy.Add((infusion, def.row + ((int)infusion)));
+                                    }
+                                }
+                                else
+                                {
+                                    rowsToCopy.Add((Infusion.None, def.row));
+                                }
+
+                                /* Auto generate some originEquipWep fields and plonk them in the def.data before we copy and modify rows */
+                                for (int i = 0; i <= 25; i++)
+                                {
+                                    string fieldName = $"originEquipWep{(i == 0 ? "" : i)}";
+                                    int fieldValue = (int)sourceRow[fieldName].Value.Value;
+                                    if (fieldValue == -1 || def.data.ContainsKey(fieldName)) { continue; }
+                                    else
+                                    {
+                                        def.data.Add(fieldName, nextWeaponId.ToString());
+                                    }
+                                }
+
+                                /* Copy rows and apply modifications */
+                                foreach ((Infusion infusion, int row) in rowsToCopy)
+                                {
+                                    ItemInfo weapon = new(def.id, Type.Weapon, nextWeaponId + (int)infusion, value, scriptItem);
+                                    SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamWeapon, def.id, row, weapon.row, def.data);
+                                    textManager.AddWeapon(weapon.row, def.text.name, def.text.description, infusion);
+                                    if (def.text.enchant != null)
+                                    {
+                                        for (int i = 0; i < def.text.enchant.Length; i++)
+                                        {
+                                            string enchant = def.text.enchant[i];
+                                            int txtId = textManager.AddWeaponEffect(enchant);
+                                            SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, weapon.row, $"spEffectMsgId{i}", txtId);
+                                        }
+                                    }
+                                    if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamWeapon, weapon.row, "iconId", iconManager.GetIconByRecord(id).id); }
+                                    items.Add(weapon);
+                                }
                                 nextWeaponId += 10000;
                                 break;
                             case Type.Armor:
-                                it = new(def.id, Type.Armor, nextArmorId, value, scriptItem);
+                                ItemInfo armor = new(def.id, Type.Armor, nextArmorId, value, scriptItem);
                                 SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamProtector, def.id, def.row, nextWeaponId, def.data);
-                                textManager.AddArmor(it.row, def.text.name, def.text.summary, def.text.description);
+                                textManager.AddArmor(armor.row, def.text.name, def.text.summary, def.text.description);
                                 if (def.useIcon) {
                                     SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextWeaponId, "iconIdM", iconManager.GetIconByRecord(id).id);
                                     SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamProtector, nextWeaponId, "iconIdF", iconManager.GetIconByRecord(id).id);
                                 }
                                 nextArmorId += 10000;
+                                items.Add(armor);
                                 break;
                             case Type.Accessory:
-                                it = new(def.id, Type.Accessory, nextAccessoryId, value, scriptItem);
+                                ItemInfo accessory = new(def.id, Type.Accessory, nextAccessoryId, value, scriptItem);
                                 SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamAccessory, def.id, def.row, nextWeaponId, def.data);
-                                textManager.AddAccessory(it.row, def.text.name, def.text.summary, def.text.description);
+                                textManager.AddAccessory(accessory.row, def.text.name, def.text.summary, def.text.description);
                                 if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamAccessory, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
                                 nextAccessoryId += 10;
+                                items.Add(accessory);
                                 break;
                             case Type.Goods:
-                                it = new(def.id, Type.Goods, nextGoodsId, value, scriptItem);
+                                ItemInfo goods = new(def.id, Type.Goods, nextGoodsId, value, scriptItem);
                                 SillyJsonUtils.CopyRowAndModify(paramanager, speffManager, Paramanager.ParamType.EquipParamGoods, def.id, def.row, nextWeaponId, def.data);
-                                textManager.AddGoods(it.row, def.text.name, def.text.summary, def.text.description, def.text.effect);
+                                textManager.AddGoods(goods.row, def.text.name, def.text.summary, def.text.description, def.text.effect);
                                 if (def.useIcon) { SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamGoods, nextWeaponId, "iconId", iconManager.GetIconByRecord(id).id); }
                                 nextGoodsId += 10;
+                                items.Add(goods);
                                 break;
                             default:
                                 throw new Exception($"Item definition for id {id} has invalid type {def.type}");
                         }
-
-                        items.Add(it);
                     }
                     /* Item id has a corresponding entry in the item_remap.json file */   // this points the item id at an existing item row. Not a copy, more like a reference
                     else if (remap != null)
                     {
-                        ItemInfo it = new(id, remap.type, remap.row, value, scriptItem);                        
+                        ItemInfo it;
+
+                        /* If the remap is to a customweapon we need to generate a row for that. */
+                        if (remap.type == Type.CustomWeapon)
+                        {
+                            int customWeaponRow = GenerateCustomWeapon(remap);
+                            it = new(id, remap.type, customWeaponRow, value, scriptItem);
+                        }
+                        /* Otherwise it's chill */
+                        else { it = new(id, remap.type, remap.row, value, scriptItem); }
+
                         items.Add(it);
 
                         // if the item remap has text changes (name/description) we apply those!
@@ -193,6 +276,8 @@ namespace JortPob
                                 case Type.Goods:
                                     textManager.RenameGoods(it.row, remap.text.name, remap.text.summary, remap.text.description, remap.text.effect);
                                     break;
+                                case Type.CustomWeapon:
+                                    throw new Exception("CustomWeapon remaps cannot have text changes!");
                                 default:
                                     throw new Exception($"Item remap for id {id} has invalid type {def.type}");
                             }
@@ -224,7 +309,22 @@ namespace JortPob
             HandleItemsByRecord(ESM.Type.Lockpick);
             HandleItemsByRecord(ESM.Type.RepairItem);
 
-            }
+        }
+
+        private int GenerateCustomWeapon(Override.ItemRemap remap)
+        {
+            FsParam customWeaponParam = paramanager.param[Paramanager.ParamType.EquipParamCustomWeapon];
+            FsParam.Row row = paramanager.CloneRow(customWeaponParam[10], remap.id, nextCustomWeaponId);
+
+            row["baseWepId"].Value.SetValue(remap.row + ((int)remap.infusion));
+            row["gemId"].Value.SetValue(remap.skill);
+            row["reinforceLv"].Value.SetValue((byte)remap.upgrade);
+
+            paramanager.AddRow(customWeaponParam, row);
+            nextCustomWeaponId += 10000;
+
+            return row.ID;
+        }
 
         /* Generate an item from the morrowind record data. This is a "Best guess" situation. */
         /* For some item types this is fine. Books and keys for example can be generated like this without any issue. */

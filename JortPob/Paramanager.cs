@@ -871,6 +871,9 @@ namespace JortPob
                 case ItemManager.Type.Enchant:
                     lotItemCategory = 5;
                     break;
+                case ItemManager.Type.CustomWeapon:
+                    lotItemCategory = 6;
+                    break;
                 default:
                     throw new Exception("Item had invalid type! This should NEVER happen!");
             }
@@ -910,6 +913,9 @@ namespace JortPob
                     break;
                 case ItemManager.Type.Enchant:
                     lotItemCategory = 5;
+                    break;
+                case ItemManager.Type.CustomWeapon:
+                    lotItemCategory = 6;
                     break;
                 default:
                     throw new Exception("Item had invalid type! This should NEVER happen!");
@@ -962,6 +968,9 @@ namespace JortPob
                     case ItemManager.Type.Enchant:
                         lotItemCategory = 5;
                         break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
+                        break;
                     default:
                         throw new Exception("Item had invalid type! This should NEVER happen!");
                 }
@@ -1013,6 +1022,9 @@ namespace JortPob
                         break;
                     case ItemManager.Type.Enchant:
                         lotItemCategory = 5;
+                        break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
                         break;
                     default:
                         throw new Exception("Item had invalid type! This should NEVER happen!");
@@ -1067,6 +1079,9 @@ namespace JortPob
                         break;
                     case ItemManager.Type.Enchant:
                         lotItemCategory = 5;
+                        break;
+                    case ItemManager.Type.CustomWeapon:
+                        lotItemCategory = 6;
                         break;
                     default:
                         throw new Exception("Item had invalid type! This should NEVER happen!");

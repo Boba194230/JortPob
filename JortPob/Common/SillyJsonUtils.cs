@@ -11,6 +11,15 @@ namespace JortPob.Common
 {
     public class SillyJsonUtils
     {
+        // int32
+        public static void SetField(Paramanager paramanager, Paramanager.ParamType paramType, int rowId, string fieldName, int value)
+        {
+            FsParam param = paramanager.param[paramType];
+            FsParam.Row row = paramanager.GetRow(param, rowId);
+            FsParam.Cell cell = (FsParam.Cell)row[fieldName];
+            cell.SetValue(value);
+        }
+
         // ushort
         public static void SetField(Paramanager paramanager, Paramanager.ParamType paramType, int rowId, string fieldName, ushort value)
         {

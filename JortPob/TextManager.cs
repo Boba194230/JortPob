@@ -15,7 +15,7 @@ namespace JortPob
 
         private Dictionary<TextType, FMG> menu, item;
 
-        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId, nextTutorial, nextMapEventText;
+        private int nextTopicId, nextNpcNameId, nextActionButtonId, nextLocationId, nextMenuId, nextTutorial, nextMapEventText, nextWeaponEffectId;
 
         public TextManager()
         {
@@ -26,6 +26,7 @@ namespace JortPob
             nextMenuId = 508000;
             nextTutorial = 500000;
             nextMapEventText = 20209000;
+            nextWeaponEffectId = 7000;
 
             Dictionary<TextType, FMG> LoadMsgBnd(string path)
             {
@@ -167,10 +168,33 @@ namespace JortPob
 
         public void AddWeapon(int id, string name, string description)
         {
+            AddWeapon(id, name, description, ItemManager.Infusion.None);
+        }
+
+        public void AddWeapon(int id, string name, string description, ItemManager.Infusion infusion)
+        {
+            string InfusionName(ItemManager.Infusion inf, string name)
+            {
+                switch(inf)
+                {
+                    case ItemManager.Infusion.FlameArt: return $"Flame Art {name}";
+                    case ItemManager.Infusion.None: return name;
+                    default: return $"{inf.ToString()} {name}";
+                }
+            }
+
             FMG fmgName = item[TextType.WeaponName];
             FMG fmgDescription = item[TextType.WeaponCaption];
-            fmgName.Entries.Add(new(id, name));
+            fmgName.Entries.Add(new(id, InfusionName(infusion, name)));
             fmgDescription.Entries.Add(new(id, description));
+        }
+
+        public int AddWeaponEffect(string text)
+        {
+            int id = nextWeaponEffectId++;
+            FMG fmg = item[TextType.WeaponEffect];
+            fmg.Entries.Add(new(id, text));
+            return id;
         }
 
         public void AddArmor(int id, string name, string summary, string description)

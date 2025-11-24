@@ -33,7 +33,7 @@ namespace JortPob
             TextManager text = new();                                                           // Manages FMG text files
             IconManager icon = new(esm);                                                       // Manages the creation and assignment of item icons
             Paramanager param = new(text);                                                        // Class for managing PARAM files
-            SpeffManager speff = new(esm, param, text);                                                   // Manages speff params, primarily for magic effects like potions and enchanted gear. NOT SPELLS!
+            SpeffManager speff = new(esm, param, icon, text);                                                   // Manages speff params, primarily for magic effects like potions and enchanted gear. NOT SPELLS!
             ItemManager item = new(esm, param, speff, icon, text);                                                   // Handles generation and reampping of items
             Layout layout = new(cache, esm, param, text, scriptManager);                          // Subdivides all content data from ESM into a more elden ring friendly format
             SoundManager sound = new();                                                         // Manages vcbanks

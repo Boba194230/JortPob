@@ -103,7 +103,18 @@ namespace JortPob
             CHARACTER_CREATION_RACE = JsonSerializer.Deserialize<List<PlayerRace>>(File.ReadAllText(Utility.ResourcePath(@"overrides\character_creation_race.json")), new JsonSerializerOptions { IncludeFields = true });
 
             /* Load item remapping list */
-            ITEM_REMAPS = JsonSerializer.Deserialize<List<ItemRemap>>(File.ReadAllText(Utility.ResourcePath(@"overrides\item_remap.json")), new JsonSerializerOptions { IncludeFields = true, Converters = { new JsonStringEnumConverter() } });
+            ITEM_REMAPS = new();
+            string[] itemRemapFiles = Directory.GetFiles(Utility.ResourcePath(@"overrides\items\remap"));
+            foreach (string itemRemapFile in itemRemapFiles)
+            {
+                JsonNode itemRemapJson = JsonNode.Parse(File.ReadAllText(itemRemapFile));
+                foreach (var property in itemRemapJson.AsObject())
+                {
+                    JsonNode jsonNode = property.Value;
+                    ItemRemap itrmo = new(property.Key, jsonNode);
+                    ITEM_REMAPS.Add(itrmo);
+                }
+            }
 
             /* Load all item definitinos from resources/override/items */
             string[] itemFiles = Directory.GetFiles(Utility.ResourcePath(@"overrides\items"));
@@ -139,13 +150,49 @@ namespace JortPob
 
         public class ItemRemap
         {
-            public string id, comment;
-            public ItemManager.Type type;
-            public int row;
+            public readonly string id, comment;
+            public readonly ItemManager.Type type;
+            public readonly int row;
 
-            public ItemText text;
+            // these 3 fields are only used for the CustomWeapon type
+            public readonly ItemManager.Infusion infusion;
+            public readonly int skill, upgrade;
 
-            public ItemRemap() { }
+            public readonly ItemText text;
+
+            public ItemRemap(string id, JsonNode json)
+            {
+                this.id = id;
+                type = (ItemManager.Type)System.Enum.Parse(typeof(ItemManager.Type), json["type"].GetValue<string>());
+                row = json["row"].GetValue<int>();
+                comment = json["comment"] != null ? json["comment"].GetValue<string>() : null;
+
+                if (json["infusion"] != null)
+                {
+                    infusion = (ItemManager.Infusion)System.Enum.Parse(typeof(ItemManager.Infusion), json["infusion"].GetValue<string>());
+                }
+                else
+                {
+                    infusion = ItemManager.Infusion.None;
+                }
+
+                skill = json["skill"] != null ? json["skill"].GetValue<int>() : -1;
+                upgrade = json["upgrade"] != null ? json["upgrade"].GetValue<int>() : 0;
+
+                if (json["text"] != null)
+                {
+                    text = new();
+                    text.name = json["text"]["name"] != null ? json["text"]["name"].GetValue<string>() : null;
+                    text.summary = json["text"]["summary"] != null ? json["text"]["summary"].GetValue<string>() : null;
+                    text.description = json["text"]["description"] != null ? json["text"]["description"].GetValue<string>() : null;
+                    text.effect = json["text"]["effect"] != null ? json["text"]["effect"].GetValue<string>() : null;
+                    text.enchant = json["text"]["enchant"] != null ? json["text"]["enchant"].AsArray().Select(node => node.GetValue<string>()).ToArray() : null;
+                }
+                else
+                {
+                    text = null;
+                }
+            }
 
             public bool HasTextChanges()
             {
@@ -156,6 +203,7 @@ namespace JortPob
         public class ItemText
         {
             public string name, summary, description, effect;
+            public string[] enchant;
 
             public ItemText() { }
         }
@@ -164,6 +212,8 @@ namespace JortPob
         {
             public readonly string id, comment;
             public readonly int row;
+
+            public readonly SpeffManager.Speff.Effect.MagicEffect icon; // buff icon to use. 'None' is valid
 
             public readonly Dictionary<string, string> data;
 
@@ -175,6 +225,15 @@ namespace JortPob
 
                 comment = json["comment"].GetValue<string>();
                 row = json["row"].GetValue<int>();
+
+                if (json["icon"] != null && json["icon"].GetValue<string>().Trim().ToLower() != "none")
+                {
+                    icon = (SpeffManager.Speff.Effect.MagicEffect)System.Enum.Parse(typeof(SpeffManager.Speff.Effect.MagicEffect), json["icon"].GetValue<string>());
+                }
+                else
+                {
+                    icon = SpeffManager.Speff.Effect.MagicEffect.None;
+                }
 
                 data = new();
                 foreach (var property in json["data"].AsObject())
@@ -212,6 +271,7 @@ namespace JortPob
                 text.summary = json["text"]["summary"] != null ? json["text"]["summary"].GetValue<string>() : null;
                 text.description = json["text"]["description"] != null ? json["text"]["description"].GetValue<string>() : null;
                 text.effect = json["text"]["effect"] != null ? json["text"]["effect"].GetValue<string>() : null;
+                text.enchant = json["text"]["enchant"] != null ? json["text"]["enchant"].AsArray().Select(node => node.GetValue<string>()).ToArray() : null;
 
                 data = new();
                 foreach(var property in json["data"].AsObject())

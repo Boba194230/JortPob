@@ -29,13 +29,15 @@ namespace JortPob
         public readonly List<Speff> speffs;
 
         private Paramanager paramanager;
+        private IconManager iconManager;
         private TextManager textManager;
 
         private int nextSpeffId = 1000000;
 
-        public SpeffManager(ESM esm, Paramanager paramanager, TextManager textManager)
+        public SpeffManager(ESM esm, Paramanager paramanager, IconManager iconManager, TextManager textManager)
         {
             this.paramanager = paramanager;
+            this.iconManager = iconManager;
             this.textManager = textManager;
 
             speffs = new();
@@ -98,6 +100,10 @@ namespace JortPob
                 {
                     Override.SpeffDefinition def = Override.GetSpeffDefinition(speff.id);
                     SillyJsonUtils.CopyRowAndModify(paramanager, this, Paramanager.ParamType.SpEffectParam, $"Custom :: {speff.id}", def.row, speff.row, def.data);
+                    if (def.icon != SpeffManager.Speff.Effect.MagicEffect.None)
+                    {
+                        SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.SpEffectParam, speff.row, "iconId", (int)(iconManager.GetBuffByType(def.icon).id));
+                    }
                 }
                 // Generate via data parsed from esm
                 else 
@@ -137,12 +143,21 @@ namespace JortPob
                     row["bAdjustFaithAblity"].Value.SetValue((byte)0);
                     row["vfxId"].Value.SetValue(-1);                     // also visual effect idk guh??
                     row["effectEndurance"].Value.SetValue((float)speff.Duration());
+                    row["iconId"].Value.SetValue(-1);
                     break;
                 case 310000: // Crimson Amber Mediallion
                     row["motionInterval"].Value.SetValue(1f);            // for effects like regen this sets the interval between stat changes. morrowind uses 1 second intervals so we will as well!
                     row["iconId"].Value.SetValue(-1);                    // buff icon
                     row["maxHpRate"].Value.SetValue(1f);
+                    row["iconId"].Value.SetValue(-1);
                     break;
+            }
+
+            /* Find and apply icon for buff */
+            if (speff.effects.Count() > 0)
+            {
+                IconManager.BuffInfo buffIcon = iconManager.GetBuffByType(speff.effects[0].effect);
+                if (buffIcon != null) { row["iconId"].Value.SetValue((int)(buffIcon.id)); }
             }
 
             /* Apply some values to our speffs based on what stuff its got in its magic effects */
@@ -279,18 +294,19 @@ namespace JortPob
             {
                 public enum MagicEffect
                 {
-                    Levitate, FortifyAttribute, DrainAttribute, AlmsiviIntervention, Burden, Chameleon, CureBlightDisease, CureCommonDisease, CureParalyzation, CurePoison, DetectAnimal, DetectEnchantment,
-                    DetectKey, ResistCommonDisease, Dispel, SlowFall, SwiftSwim, DrainMagicka, Feather, ResistFire, FireShield, FortifyAttackBonus, FortifyFatigue, FortifyHealth, FortifyMagicka,
-                    ResistFrost, FrostShield, RestoreHealth, RestoreFatigue, Shield, Invisibility, Jump, Light, LightningShield, ResistMagicka, Mark, NightEye, Paralyze, ResistPoison, Telekinesis,
-                    Recall, Reflect, RestoreAttribute, RestoreMagicka, ResistShock, Silence, SpellAbsorption, WaterBreathing, WaterWalking, DamageAttribute, FortifySkill, DisintegrateArmor,
-                    CommandCreature, CommandHumanoid, ResistNormalWeapons, DamageHealth, Charm, FrostDamage, Blind, SummonFlameAtronach, SummonGhost, Sanctuary, FireDamage, WeaknessToFire, 
-                    WeaknessToShock, ShockDamage, WeaknessToPoison, Poison, SummonFrostAtronach, SummonStormAtronach, DisintegrateWeapon, AbsorbFatigue, DrainFatigue, DamageSkill, AbsorbAttribute,
-                    AbsorbHealth, SummonSkeleton, DamageFatigue, BoundBattleAxe, BoundBoots, BoundCuirass, BoundDagger, BoundGloves, BoundHelm, BoundLongbow, BoundLongsword, BoundMace, BoundShield,
-                    BoundSpear, SummonDremora, DemoralizeHumanoid, RallyHumanoid, AbsorbSkill, Sound, SummonScamp, DemoralizeCreature, WeaknessToFrost, WeaknessToMagicka, DivineIntervention,
-                    DamageMagicka, Lock, DrainHealth, SoulTrap, TurnUndead, DrainSkill, AbsorbMagicka, Open, ResistParalysis, CalmCreature, FrenzyCreature, FrenzyHumanoid, SummonGoldenSaint,
-                    RallyCreature, CalmHumanoid, SummonBonelord, SummonClannfear, SummonDaedroth, SummonGreaterBonewalker, SummonLeastBonewalker, SummonHunger, SummonTwilight, FortifyMagickaMultiplier,
-                    ResistBlightDisease, RestoreSkill, Corprus, ResistCorprus, CureCorprus, SummonCenturionSphere, SunDamage, Vampirism, WeaknessToBlightDisease, WeaknessToCommonDisease,
-                    WeaknessToCorprus, StuntedMagicka
+                    None, // not a real value from MW. This is a special case for json speffs to use when they don't want any buff icon
+                    WaterBreathing, SwiftSwim, WaterWalking, Shield, FireShield, LightningShield, FrostShield, Burden, Feather, Jump, Levitate, SlowFall, Lock, Open, FireDamage, ShockDamage,
+                    FrostDamage, DrainAttribute, DrainHealth, DrainMagicka, DrainFatigue, DrainSkill, DamageAttribute, DamageHealth, DamageMagicka, DamageFatigue, DamageSkill, Poison,
+                    WeaknessToFire, WeaknessToFrost, WeaknessToShock, WeaknessToMagicka, WeaknessToCommonDisease, WeaknessToBlightDisease, WeaknessToCorprus, WeaknessToPoison, WeaknessToNormalWeapons,
+                    DisintegrateWeapon, DisintegrateArmor, Invisibility, Chameleon, Light, Sanctuary, NightEye, Charm, Paralyze, Silence, Blind, Sound, CalmHumanoid, CalmCreature, FrenzyHumanoid,
+                    FrenzyCreature, DemoralizeHumanoid, DemoralizeCreature, RallyHumanoid, RallyCreature, Dispel, SoulTrap, Telekinesis, Mark, Recall, DivineIntervention, AlmsiviIntervention,
+                    DetectAnimal, DetectEnchantment, DetectKey, SpellAbsorption, Reflect, CureCommonDisease, CureBlightDisease, CureCorprus, CurePoison, CureParalyzation, RestoreAttribute, RestoreHealth,
+                    RestoreMagicka, RestoreFatigue, RestoreSkill, FortifyAttribute, FortifyHealth, FortifyMagicka, FortifyFatigue, FortifySkill, FortifyMagickaMultiplier, AbsorbAttribute, AbsorbHealth,
+                    AbsorbMagicka, AbsorbFatigue, AbsorbSkill, ResistFire, ResistFrost, ResistShock, ResistMagicka, ResistCommonDisease, ResistBlightDisease, ResistCorprus, ResistPoison,
+                    ResistNormalWeapons, ResistParalysis, RemoveCurse, TurnUndead, SummonScamp, SummonClannfear, SummonDaedroth, SummonDremora, SummonGhost, SummonSkeleton, SummonLeastBonewalker,
+                    SummonGreaterBonewalker, SummonBonelord, SummonTwilight, SummonHunger, SummonGoldenSaint, SummonFlameAtronach, SummonFrostAtronach, SummonStormAtronach, FortifyAttackBonus,
+                    CommandCreature, CommandHumanoid, BoundDagger, BoundLongsword, BoundMace, BoundBattleAxe, BoundSpear, BoundLongbow, ExtraSpell, BoundCuirass, BoundHelm, BoundBoots, BoundShield,
+                    BoundGloves, Corprus, Vampirism, SummonCenturionSphere, SunDamage, StuntedMagicka
                 }
 
                 public enum Skill
