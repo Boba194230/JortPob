@@ -22,6 +22,7 @@ namespace JortPob
     {
         private static HashSet<string> DO_NOT_PLACE;
         private static HashSet<string> STATIC_COLLISION;
+        private static HashSet<string> ITEMS_TO_SKIP;
 
         private static List<PlayerClass> CHARACTER_CREATION_CLASS;
         private static List<PlayerRace> CHARACTER_CREATION_RACE;
@@ -37,6 +38,11 @@ namespace JortPob
         public static bool CheckStaticCollision(string id)
         {
             return STATIC_COLLISION.Contains(id.ToLower());
+        }
+
+        public static bool CheckSkipItem(string id)
+        {
+            return ITEMS_TO_SKIP.Contains(id.ToLower());
         }
 
         public static List<PlayerClass> GetCharacterCreationClasses()
@@ -94,6 +100,12 @@ namespace JortPob
             JsonNode jsonStaticCollision = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\static_collision.json")));
             STATIC_COLLISION = jsonStaticCollision != null
                 ? jsonStaticCollision.AsArray().Select(node => node.ToString().ToLower()).ToHashSet()
+                : [];
+
+            /* Load items_to_skip overrides */
+            JsonNode jsonItemsToSkip = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\items_to_skip.json")));
+            ITEMS_TO_SKIP = jsonItemsToSkip != null
+                ? jsonItemsToSkip.AsArray().Select(node => node.ToString().ToLower()).ToHashSet()
                 : [];
 
             /* Load character creation class overrides */

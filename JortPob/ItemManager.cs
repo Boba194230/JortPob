@@ -297,7 +297,7 @@ namespace JortPob
                         GenerateItem(recordType, json);
                     }
                     /* Depending on debug settings, generate this non-essential item */
-                    else if(!Const.DEBUG_SKIP_NON_ESSENTIAL_ITEMS)
+                    else if(!Const.DEBUG_SKIP_NON_ESSENTIAL_ITEMS && !Override.CheckSkipItem(id))
                     {
                         GenerateItem(recordType, json);
                     }

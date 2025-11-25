@@ -5236,6 +5236,9 @@
     <None Update="Resources\overrides\items\chargen dagger.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\overrides\items_to_skip.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\overrides\items\remap\armor.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -5399,5 +5402,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <ProjectExtensions><VisualStudio><UserProperties resources_4overrides_4items_3to_3skip_1json__JsonSchema="https://4lando.github.io/lando-spec/landofile-spec.json" /></VisualStudio></ProjectExtensions>
 
 </Project>

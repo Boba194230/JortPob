@@ -199,7 +199,6 @@ namespace JortPob
                     }
                 }
 
-                //sheet.Save(@$"I:\SteamLibrary\steamapps\common\ELDEN RING\sheet_test{sheetIndex}.bmp"); // @TODO: DEBUG DELETE ME!
                 sheets.Add((layout, sheet));
             }
 
@@ -249,7 +248,6 @@ namespace JortPob
                     }
                 }
             }
-            buffSheet.Save(@$"I:\SteamLibrary\steamapps\common\ELDEN RING\buff_test_sheet.bmp"); // @TODO: DEBUG DELETE ME!
             sheets.Add((buffLayout, buffSheet));
 
             /* Write sheets and layouts to bnds and tpfs */

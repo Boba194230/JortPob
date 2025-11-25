@@ -430,11 +430,12 @@ namespace JortPob
         // @TODO: maybe move weatherdata to layout or its own class since its used by multiple toher thingsthingso
         public static WeatherData GetWeatherData(string region)
         {
-            foreach(WeatherData wd in EXTERIOR_WEATHER_DATA_LIST)
+            string regionLower = region.ToLower().Trim();
+            foreach (WeatherData wd in EXTERIOR_WEATHER_DATA_LIST)
             {
                 foreach(string m in wd.match)
                 {
-                    if (m.ToLower().Trim() == region.ToLower().Trim()) { return wd; }
+                    if (m.ToLower().Trim() == regionLower) { return wd; }
                 }
             }
             return null;
