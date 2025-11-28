@@ -81,6 +81,7 @@
     </Reference>
     <Reference Include="tes3-interop">
       <HintPath>..\JortPob\DLL\tes3-interop.dll</HintPath>
+	</Reference>
     <Reference Include="Tommy">
       <HintPath>..\JortPob\DLL\Tommy.dll</HintPath>
     </Reference>

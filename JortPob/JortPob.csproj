@@ -18,15 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Properties\" />
-    <Folder Include="Resources\tools\ER_OBJ2HKX\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="NpcManager.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Reference Include="ESDLang">
       <HintPath>DLL\ESDLang.dll</HintPath>
     </Reference>
@@ -91,16 +82,7 @@
     <Reference Include="ZstdNet">
       <HintPath>DLL\ZstdNet.dll</HintPath>
     </Reference>
-
-    <!-- Compiled tool references -->
   </ItemGroup>
-
-  <Target Name="CopyESDLangDocs" AfterTargets="AfterBuild">
-    <ItemGroup Label="ESDLangDocs">
-      <ESDLangDocsSourceFiles Include="Resources\tools\ESDTool\dist\**\*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(ESDLangDocsSourceFiles)" DestinationFolder="$(OutDir)\dist" SkipUnchangedFiles="true" ContinueOnError="false" />
-  </Target>
 
   <!-- DLLs -->
   <ItemGroup>
