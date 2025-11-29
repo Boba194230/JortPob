@@ -44,8 +44,7 @@ https://cdn.discordapp.com/attachments/1410970950895403040/1411525175802990794/r
 13. Run BSAUnpacker, load the Morrowind.BSA from data files and then hit extract all and tell it to ouput to the `Morrowind/Data Files` folder. If done correctly you will have a bunch files in `Morrowind/Data Files/Meshes` like this:
 <img width="960" height="755" alt="image" src="https://github.com/user-attachments/assets/6fb8adce-1bf4-426d-914a-233331351aed" />
 
-14. Download UXM and unpack Elden Ring. JortPob pulls many sources from the unpacked Elden Ring files. https://github.com/Nordgaren/UXM-Selective-Unpack
-<img width="539" height="634" alt="image" src="https://github.com/user-attachments/assets/ac43e504-4b41-48a7-8f77-8b60c9a189ca" />
+14. Download UXM and unpack all of Elden Ring. JortPob pulls many sources from the unpacked Elden Ring files. https://github.com/Nordgaren/UXM-Selective-Unpack
 
 15. Run the project in your IDE. It will take a while to build.
 
