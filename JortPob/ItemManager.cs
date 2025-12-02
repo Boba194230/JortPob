@@ -844,7 +844,8 @@ namespace JortPob
             return ResolveInventory(container.inventory);
         }
 
-        /* Resolves a contents inventory (record id and quanity) to actual ItemInfo objects */
+        /* Resolves a content objects inventory (record id and quanity) to actual ItemInfo objects */
+        /* Also truncates inventory to 10 slots which is the max size for an ItemLot param chain! */
         public List<(ItemInfo item, int quantity)> ResolveInventory(List<(string id, int quantity)> inv)
         {
             const int MAX_INV = 10;
@@ -911,6 +912,12 @@ namespace JortPob
                     truncated.Add(entry);
                 }
 
+                if(truncated.Count > 10)
+                {
+                    Lort.Log($"Inventory excceded max possible size [{truncated.Count}/10]! Truncating!", Lort.Type.Debug);
+                    truncated = truncated.GetRange(0, 10);
+                }
+
                 inventory = truncated;
             }
 
@@ -949,7 +956,11 @@ namespace JortPob
                 }
             }
 
-            if (itemsToSell.Count >= 99) { throw new Exception($"ShopParam excceded max possible size [{itemsToSell.Count}/99]!"); } // uh-oh!
+            if (itemsToSell.Count > 99) // uh-oh!
+            {
+                Lort.Log($"ShopParam excceded max possible size [{itemsToSell.Count}/99]! Truncating!", Lort.Type.Debug);
+                itemsToSell = itemsToSell.GetRange(0, 99); // @TODO: Better truncation method please! Discard less useful items instead of chopping!
+            } 
 
             int baseRow = nextShopId;
             FsParam shopParam = paramanager.param[Paramanager.ParamType.ShopLineupParam];
