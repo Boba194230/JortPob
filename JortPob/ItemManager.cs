@@ -51,6 +51,7 @@ namespace JortPob
         public readonly List<LeveledList> lists; // leveled lists for items
 
         private Paramanager paramanager;
+        private SpellManager spellManager;
         private SpeffManager speffManager;
         private IconManager iconManager;
         private TextManager textManager;
@@ -60,6 +61,7 @@ namespace JortPob
         public ItemManager(ESM esm, Paramanager paramanager, SpeffManager speffManager, IconManager iconManager, TextManager textManager)
         {
             this.paramanager = paramanager;
+            this.spellManager = new SpellManager(esm, paramanager, textManager);
             this.speffManager = speffManager;
             this.iconManager = iconManager;
             this.textManager = textManager;
@@ -365,6 +367,16 @@ namespace JortPob
                 }
 
                 lists.Add(list);
+            }
+
+            /* Lastly we should parse our json info regarding ash of war items */
+            foreach(Override.SkillInfo skillInfo in Override.GetSkills())
+            {
+                SillyJsonUtils.SetField(paramanager, Paramanager.ParamType.EquipParamGem, skillInfo.row, "sellValue", (int)Math.Max(1, skillInfo.value * Const.MERCANTILE_SELL_SCALE));
+                if(skillInfo.HasTextChanges())
+                {
+                    textManager.RenameGem(skillInfo.row, skillInfo.text.name, skillInfo.text.description);
+                }
             }
         }
 
@@ -924,7 +936,7 @@ namespace JortPob
             return inventory;
         }
 
-        /* Creates params for a shop from a list of item record ids and returns the base row */
+        /* Creates params for a barter shop from a list of item record ids and returns the base row */
         public int CreateShop(List<(string id, int quantity)> inventory)
         {
             if (inventory == null || inventory.Count() < 0) { return -1; } // no shop!
@@ -956,12 +968,15 @@ namespace JortPob
                 }
             }
 
+            if (itemsToSell.Count <= 0) { return -1; } // empty shop, discard!
+
             if (itemsToSell.Count > 99) // uh-oh!
             {
                 Lort.Log($"ShopParam excceded max possible size [{itemsToSell.Count}/99]! Truncating!", Lort.Type.Debug);
                 itemsToSell = itemsToSell.GetRange(0, 99); // @TODO: Better truncation method please! Discard less useful items instead of chopping!
             } 
 
+            /* Create shop */
             int baseRow = nextShopId;
             FsParam shopParam = paramanager.param[Paramanager.ParamType.ShopLineupParam];
             int j = 0;
@@ -972,6 +987,82 @@ namespace JortPob
                 row["equipId"].Value.SetValue(item.row);
                 row["equipType"].Value.SetValue((byte)item.EquipType());
                 row["value"].Value.SetValue((int)Math.Max(1, item.value * Const.MERCANTILE_BUY_SCALE));
+
+                paramanager.AddRow(shopParam, row);
+
+                j++;
+            }
+
+            nextShopId += 100;
+            return baseRow;
+        }
+
+        /* Creates params for a spell shop from a list of spell record ids and returns the base row */
+        public int CreateShop(List<string> spells)
+        {
+            if (spells == null || spells.Count() < 0) { return -1; } // no shop!
+
+            /* Resolve spell ids to actual spellinfo objects */
+            List<SpellManager.SpellInfo> spellsToSell = new();
+            foreach(string spell in spells)
+            {
+                SpellManager.SpellInfo spellInfo = spellManager.GetSpell(spell);
+                if(spellInfo != null) { spellsToSell.Add(spellInfo); }
+            }
+
+            if (spellsToSell.Count <= 0) { return -1; } // empty shop, discard!
+
+            if (spellsToSell.Count > 99) // uh-oh!
+            {
+                Lort.Log($"ShopParam excceded max possible size [{spellsToSell.Count}/99]! Truncating!", Lort.Type.Debug);
+                spellsToSell = spellsToSell.GetRange(0, 99); // @TODO: Better truncation method please! Discard less useful items instead of chopping!
+            }
+
+            /* Create shop */
+            int baseRow = nextShopId;
+            FsParam shopParam = paramanager.param[Paramanager.ParamType.ShopLineupParam];
+            int j = 0;
+            foreach (SpellManager.SpellInfo spell in spellsToSell)
+            {
+                FsParam.Row row = paramanager.CloneRow(shopParam[1], $"Shop::Magic::{spell.id}", baseRow + j); // 1 is something default-ish idk. we just filling this out fully
+
+                row["equipId"].Value.SetValue(spell.row);
+                row["equipType"].Value.SetValue((byte)3);  // goods
+                row["value"].Value.SetValue((int)Math.Max(1, spell.value));
+
+                paramanager.AddRow(shopParam, row);
+
+                j++;
+            }
+
+            nextShopId += 100;
+            return baseRow;
+        }
+
+        /* Creates params for an enchant shop, parameter determines the max quality of enchantments provided */
+        public int CreateShop(NpcContent.Stats.Tier tier)
+        {
+            /* Randomly select skills to provide based on tier */
+            List<Override.SkillInfo> skillPool = Override.GetSkills(tier); // this method creates a new list so we can modify it without issue
+            int numItems = Math.Min((int)tier, skillPool.Count()); // clamp!
+
+            while(skillPool.Count() > numItems)
+            {
+                int roll = Utility.RandomRange(0, skillPool.Count());
+                skillPool.RemoveAt(roll);
+            }
+
+            /* Create shop */
+            int baseRow = nextShopId;
+            FsParam shopParam = paramanager.param[Paramanager.ParamType.ShopLineupParam];
+            int j = 0;
+            foreach (Override.SkillInfo skill in skillPool)
+            {
+                FsParam.Row row = paramanager.CloneRow(shopParam[1], $"Shop::Gem::{skill.row}", baseRow + j); // 1 is something default-ish idk. we just filling this out fully
+
+                row["equipId"].Value.SetValue(skill.row);
+                row["equipType"].Value.SetValue((byte)4);  // gem
+                row["value"].Value.SetValue((int)Math.Max(1, skill.value));
 
                 paramanager.AddRow(shopParam, row);
 

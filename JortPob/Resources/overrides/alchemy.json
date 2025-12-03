@@ -1,0 +1,12 @@
+{
+  "p_restore_health_b": {
+    "comment": "Bargain Restore Health Potion Recipe",
+    "tier": "Novice",
+    "ingredients": [ "ingred_saltrice_01", "ingred_marshmerrow_01" ]
+  },
+  "p_restore_health_q": {
+    "comment": "Quality Restore Health Potion Recipe",
+    "tier": "Journeyman",
+    "ingredients": [ "ingred_resin_01", "ingred_corkbulb_root_01" ]
+  }
+}

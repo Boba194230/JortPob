@@ -1,12 +1,18 @@
 ﻿using HKLib.hk2018.hk;
 using JortPob.Common;
+using Microsoft.Scripting;
 using SoulsFormats.Formats.Morpheme.MorphemeBundle;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using static HKLib.hk2018.hkpWheelFrictionConstraintAtom;
+using static IronPython.Modules._ast;
+using static JortPob.ItemManager;
+using static JortPob.SpeffManager;
 
 namespace JortPob
 {
@@ -121,12 +127,14 @@ namespace JortPob
         public readonly bool hostile, dead;
 
         public readonly bool essential; // player gets called dumb if they kill this dood
+        public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
+
+        public readonly Stats stats; // skills and attributes
 
         public readonly List<Service> services;
 
-        public bool hasWitness; // this value is set based on local npcs. defaults false. if true then crimes comitted against this npc will cause bounty
-
         public List<(string id, int quantity)> inventory;
+        public List<string> spells; // spells this character knows or sells as a vendor
 
         public List<(string id, int quantity)> barter; // can be null
 
@@ -141,6 +149,89 @@ namespace JortPob
             public Travel(JsonNode json) : base(json)
             {
                 cost = 100;
+            }
+        }
+
+        public class Stats
+        {
+            public enum Tier { Novice = 0, Apprentice = 25, Journeyman = 50, Expert = 75, Master = 100 }
+            public enum Skill { Acrobatics, Alchemy, Alteration, Armorer, Athletics, Axe, Block, BluntWeapon, Conjuration, Destruction, Enchant, HandToHand, HeavyArmor, Illusion, LightArmor, LongBlade, Marksman, MediumArmor, Mercantile, Mysticism, Restoration, Security, ShortBlade, Sneak, Spear, Speechcraft, Unarmored };
+            public enum Attribute { Strength, Intelligence, Willpower, Agility, Speed, Endurance, Personality, Luck };
+
+            private readonly Dictionary<Skill, int> skills;
+            private readonly Dictionary<Attribute, int> attributes;
+
+            public Stats(JsonNode json)
+            {
+                attributes = new();
+                skills = new();
+
+                JsonArray attr = json["attributes"].AsArray();
+                JsonArray skil = json["skills"].AsArray();
+
+                attributes.Add(Attribute.Strength, attr[0].GetValue<int>());
+                attributes.Add(Attribute.Intelligence, attr[1].GetValue<int>());
+                attributes.Add(Attribute.Willpower, attr[2].GetValue<int>());
+                attributes.Add(Attribute.Agility, attr[3].GetValue<int>());
+                attributes.Add(Attribute.Speed, attr[4].GetValue<int>());
+                attributes.Add(Attribute.Endurance, attr[5].GetValue<int>());
+                attributes.Add(Attribute.Personality, attr[6].GetValue<int>());
+                attributes.Add(Attribute.Luck, attr[7].GetValue<int>());
+
+                skills.Add(Skill.Acrobatics, skil[0].GetValue<int>());
+                skills.Add(Skill.Alchemy, skil[1].GetValue<int>());
+                skills.Add(Skill.Alteration, skil[2].GetValue<int>());
+                skills.Add(Skill.Armorer, skil[3].GetValue<int>());
+                skills.Add(Skill.Athletics, skil[4].GetValue<int>());
+                skills.Add(Skill.Axe, skil[5].GetValue<int>());
+                skills.Add(Skill.Block, skil[6].GetValue<int>());
+                skills.Add(Skill.BluntWeapon, skil[7].GetValue<int>());
+                skills.Add(Skill.Conjuration, skil[8].GetValue<int>());
+                skills.Add(Skill.Destruction, skil[9].GetValue<int>());
+                skills.Add(Skill.Enchant, skil[10].GetValue<int>());
+                skills.Add(Skill.HandToHand, skil[11].GetValue<int>());
+                skills.Add(Skill.HeavyArmor, skil[12].GetValue<int>());
+                skills.Add(Skill.Illusion, skil[13].GetValue<int>());
+                skills.Add(Skill.LightArmor, skil[14].GetValue<int>());
+                skills.Add(Skill.LongBlade, skil[15].GetValue<int>());
+                skills.Add(Skill.Marksman, skil[16].GetValue<int>());
+                skills.Add(Skill.MediumArmor, skil[17].GetValue<int>());
+                skills.Add(Skill.Mercantile, skil[18].GetValue<int>());
+                skills.Add(Skill.Mysticism, skil[19].GetValue<int>());
+                skills.Add(Skill.Restoration, skil[20].GetValue<int>());
+                skills.Add(Skill.Security, skil[21].GetValue<int>());
+                skills.Add(Skill.ShortBlade, skil[22].GetValue<int>());
+                skills.Add(Skill.Sneak, skil[23].GetValue<int>());
+                skills.Add(Skill.Spear, skil[24].GetValue<int>());
+                skills.Add(Skill.Speechcraft, skil[25].GetValue<int>());
+                skills.Add(Skill.Unarmored, skil[26].GetValue<int>());
+            }
+
+            public int Get(Skill skill) { return skills[skill]; }
+            public int Get(Attribute attribute) { return attributes[attribute]; }
+
+            public Tier GetTier(Skill skill) {
+                int val = skills[skill];
+                if (val >= (int)Tier.Master) { return Tier.Master; }
+                else if(val >= (int)Tier.Expert) { return Tier.Expert; }
+                else if(val >= (int)Tier.Journeyman) { return Tier.Journeyman; }
+                else if(val >= (int)Tier.Apprentice) { return Tier.Apprentice; }
+                else { return Tier.Novice; }
+            }
+
+            /* Return # highest skills. This is how MW determines trainer skills */
+            public List<Skill> GetHighest(int num)
+            {
+                var list = skills.ToList();
+                list.Sort((x, y) => y.Value.CompareTo(x.Value));
+
+                List<Skill> highest = new();
+                for(int i=0;i<num||i<list.Count();i++)
+                {
+                    highest.Add(list[i].Key);
+                }
+
+                return highest;
             }
         }
 
@@ -168,6 +259,8 @@ namespace JortPob
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
 
+            stats = new(json["data"]["stats"]);
+
             string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
             services = new();
             foreach (string s in serviceFlags)
@@ -189,6 +282,16 @@ namespace JortPob
             {
                 JsonArray item = node.AsArray();
                 inventory.Add(new(item[1].GetValue<string>().ToLower(), Math.Max(1, Math.Abs(item[0].GetValue<int>()))));
+            }
+
+            spells = new();
+            if (record.json["spells"] != null)
+            {
+                JsonArray spellJson = record.json["spells"].AsArray();
+                for(int i=0;i<spellJson.Count;i++)
+                {
+                    spells.Add(spellJson[i].GetValue<string>().ToLower());
+                }
             }
 
             travel = new();
@@ -219,6 +322,44 @@ namespace JortPob
                 services.Contains(Service.BartersLockpicks) ||
                 services.Contains(Service.BartersProbes) ||
                 services.Contains(Service.BartersLights);
+        }
+
+        public bool SellsSpells()
+        {
+            return services.Contains(Service.OffersSpells);
+        }
+
+        public bool OffersMemorize()
+        {
+            return
+                services.Contains(Service.OffersSpells) ||
+                services.Contains(Service.OffersSpellmaking) ||
+                OffersTraining(Stats.Skill.Alteration) ||
+                OffersTraining(Stats.Skill.Conjuration) ||
+                OffersTraining(Stats.Skill.Destruction) ||
+                OffersTraining(Stats.Skill.Illusion) ||
+                OffersTraining(Stats.Skill.Mysticism) ||
+                OffersTraining(Stats.Skill.Restoration);
+        }
+
+        public bool DoesEnchanting()
+        {
+            return services.Contains(Service.OffersEnchanting) || OffersTraining(Stats.Skill.Enchant);
+        }
+
+        public bool OffersTraining(Stats.Skill skill)
+        {
+            return services.Contains(Service.OffersTraining) && stats.GetHighest(3).Contains(skill);
+        }
+
+        public bool OffersAlchemy()
+        {
+            return OffersTraining(Stats.Skill.Alchemy);
+        }
+
+        public bool OffersTailoring()
+        {
+            return job.ToLower() == "clothier";
         }
     }
 

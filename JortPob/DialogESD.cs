@@ -725,7 +725,8 @@ namespace JortPob
         private string State_x44(uint id, List<NpcManager.TopicData> topics)
         {
             string id_s = id.ToString("D9");
-            int barterShopId = itemManager.CreateShop(npcContent.barter); // returns -1 if no barter shop
+            int barterShopId = itemManager.CreateShop(npcContent.barter);
+            int spellShopId = itemManager.CreateShop(npcContent.spells);
 
             StringBuilder s = new();
 
@@ -742,13 +743,45 @@ namespace JortPob
             }
 
             int listCount = 1; // starts at 1 because guh
+
+            // Add barter if npc offers it
             if(barterShopId > 0)
             {
                 int barterMenuTopicId = textManager.GetTopic("Barter");
                 s.Append($"        # action:{barterMenuTopicId}:\"Barter\"\r\n        AddTalkListData({listCount++}, {barterMenuTopicId}, -1)\r\n        # action:20000011:\"Sell\"\r\n        AddTalkListData({listCount++}, 20000011, -1)\r\n");
             }
 
-            // Add travel option
+            // Add tailoring if npc offers it
+            if(npcContent.OffersTailoring())
+            {
+                int tailorMenuTopicId = textManager.GetTopic("Alter Garments");
+                s.Append($"        # action:{tailorMenuTopicId}:\"Alter Garments\"\r\n        AddTalkListData({listCount++}, {tailorMenuTopicId}, -1)\r\n");
+            }
+
+            // Add spell shop if npc offers it
+            if (spellShopId > 0)
+            {
+                int spellMenuTopicId = textManager.GetTopic("Learn Spells");
+                s.Append($"        # action:{spellMenuTopicId}:\"Learn Spells\"\r\n        AddTalkListData({listCount++}, {spellMenuTopicId}, -1)\r\n");
+            }
+
+            // Add memorize spells if npc offers it
+            if (npcContent.OffersMemorize())
+            {
+                int memorizeMenuTopicId = textManager.GetTopic("Memorize Spells");
+                s.Append($"        # action:{memorizeMenuTopicId}:\"Memorize Spells\"\r\n        AddTalkListData({listCount++}, {memorizeMenuTopicId}, -1)\r\n");
+            }
+
+            // Add enchanting if npc offers it
+            if (npcContent.DoesEnchanting())
+            {
+                int learnEnchantMenuTopicId = textManager.GetTopic("Learn Enchantment");
+                int createEnchantMenuTopicId = textManager.GetTopic("Create Enchantment");
+                s.Append($"        # action:{learnEnchantMenuTopicId}:\"Learn Enchantment\"\r\n        AddTalkListData({listCount++}, {learnEnchantMenuTopicId}, -1)\r\n");
+                s.Append($"        # action:{createEnchantMenuTopicId}:\"Create Enchantment\"\r\n        AddTalkListData({listCount++}, {createEnchantMenuTopicId}, -1)\r\n");
+            }
+
+            // Add travel option if npc offers it
             if (npcContent.travel.Count() > 0)
             {
                 int travelMenuTopicId = textManager.GetTopic("Travel");
@@ -789,9 +822,40 @@ namespace JortPob
 
             string ifopA = "if";
             listCount = 1; // reset
+            // barter options
             if (barterShopId > 0)
             {
-                s.Append($"        if GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 6\"\"\"\r\n            OpenRegularShop({barterShopId}, {barterShopId+99})\r\n            \"\"\"State 7\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            \"\"\"State 9\"\"\"\r\n            OpenSellShop(-1, -1)\r\n            \"\"\"State 8\"\"\"\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({barterShopId}, {barterShopId+99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n        elif GetTalkListEntryResult() == {listCount++}:\r\n            OpenSellShop(-1, -1)\r\n            assert not (CheckSpecificPersonMenuIsOpen(6, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
+            // tailoring options
+            if(npcContent.OffersTailoring())
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenTailoringShop(111000, 111399)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
+            // spell options
+            if (spellShopId > 0)
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({spellShopId}, {spellShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
+            // memorize options
+            if (npcContent.OffersMemorize())
+            {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenMagicEquip(-1, -1)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                ifopA = "elif";
+            }
+
+            // enchanting options
+            if (npcContent.DoesEnchanting())
+            {
+                int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(Stats.Skill.Enchant));
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({enchantShopId}, {enchantShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEquipmentChangeOfPurposeShop()\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
