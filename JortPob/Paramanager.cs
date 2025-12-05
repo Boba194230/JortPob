@@ -162,6 +162,36 @@ namespace JortPob
             foreach(FsParam.Row row in keepRecipes) { recipeParam.AddRow(row); }
             foreach(FsParam.Row row in keepMaterials) { materialParam.AddRow(row); }
 
+            /* Clear out some itemlots to make space because idk dumb param limits. Also make a template row */
+            FsParam itemLotParamMap = param[Paramanager.ParamType.ItemLotParam_map];
+            List<FsParam.Row> keepMapLots = new();
+            foreach (FsParam.Row row in itemLotParamMap.Rows)
+            {
+                if (row.ID >= 18000000 && row.ID < 19000000)
+                {
+                    keepMapLots.Add(row);
+                }
+
+                if(row.ID == 0)
+                {
+                    // Create blank template
+                    row["lotItem_Rarity"].Value.SetValue((sbyte)-1);
+                    row["GameClearOffset"].Value.SetValue((sbyte)-1);
+                    row["getItemFlagId"].Value.SetValue((uint)0);
+                    for(int i=1;i<=8;i++)
+                    {
+                        row[$"lotItemId{i:D2}"].Value.SetValue(0);
+                        row[$"lotItemCategory{i:D2}"].Value.SetValue(0);
+                        row[$"lotItemNum{i:D2}"].Value.SetValue((byte)0);
+                        row[$"lotItemBasePoint{i:D2}"].Value.SetValue((ushort)0);
+                        row[$"enableLuck{i:D2}"].Value.SetValue((ushort)0);
+                    }
+                    keepMapLots.Add(row);
+                }
+            }
+            itemLotParamMap.ClearRows();
+            foreach (FsParam.Row row in keepMapLots) { itemLotParamMap.AddRow(row); }
+
             GC.Collect(); // maybe fixes a bug with fsparam. 80% sure
         }
 
@@ -873,12 +903,15 @@ namespace JortPob
         public int GenerateAddItemLot(ItemManager.ItemInfo itemInfo)
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
-            FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, repeatable, scripted, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+            FsParam.Row row = CloneRow(itemLotParam[0], $"single, repeatable, scripted, {itemInfo.type}", nextMapItemLotId); // 0 is a default template we created in the constructor
+            
+            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             row["getItemFlagId"].Value.SetValue((uint)0);
             row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
             row["lotItemId01"].Value.SetValue(itemInfo.row);
             row["lotItemNum01"].Value.SetValue((byte)1);
+            row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
 
             AddRow(itemLotParam, row);
             nextMapItemLotId += 10;
@@ -889,14 +922,17 @@ namespace JortPob
         public int GenerateContentItemLot(Script script, ItemContent itemContent, ItemManager.ItemInfo itemInfo)
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
-            FsParam.Row row = CloneRow(itemLotParam[1042360010], $"single, not repeatable, map treasure, {itemInfo.type}", nextMapItemLotId); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
+            FsParam.Row row = CloneRow(itemLotParam[0], $"single, not repeatable, map treasure, {itemInfo.type}", nextMapItemLotId); // 0 is a default template we created in the constructor
             Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"TreasureItem::{itemInfo.type}:{itemInfo.row}");
             itemContent.treasure = itemLotFlag;
+
+            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
             row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
             row["lotItemId01"].Value.SetValue(itemInfo.row);
             row["lotItemNum01"].Value.SetValue((byte)1);
+            row[$"lotItemBasePoint01"].Value.SetValue((ushort)1000);
 
             script.RegisterItemAsset(itemContent);
 
@@ -911,6 +947,7 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
+            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
@@ -918,8 +955,8 @@ namespace JortPob
             {
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"DeadBody::{npc.id}:{0}");
                 if (i == 0) { npc.treasure = itemLotFlag; }
-                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"deadbody, not repeatable, {npc.id}:{entry.item.id}:{i}", baseRow+i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
-                
+                FsParam.Row row = CloneRow(itemLotParam[0], $"deadbody, not repeatable, {npc.id}:{entry.item.id}:{i}", baseRow+i); // 0 is a default template we created in the constructor
+
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
                 row[$"lotItemCategory01"].Value.SetValue(entry.item.ItemLotCategory());
                 row[$"lotItemId01"].Value.SetValue(entry.item.row);
@@ -940,6 +977,7 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
+            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
@@ -947,8 +985,8 @@ namespace JortPob
             {
                 Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"Container::{container.id}:{0}");
                 if(i==0) { container.treasure = itemLotFlag; } 
-                FsParam.Row row = CloneRow(itemLotParam[1042360010], $"container, not repeatable, {container.id}:{i}:{entry.item.id}", baseRow + i); // 1042360010 is an overworld itemlot of 2 silver pickled fowl feet
-                
+                FsParam.Row row = CloneRow(itemLotParam[0], $"container, not repeatable, {container.id}:{i}:{entry.item.id}", baseRow + i); // 0 is a default template we created in the constructor
+
                 row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
                 row[$"lotItemCategory01"].Value.SetValue(entry.item.ItemLotCategory());
                 row[$"lotItemId01"].Value.SetValue(entry.item.row);
@@ -971,6 +1009,7 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_enemy];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
+            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextEnemyItemLotId;
