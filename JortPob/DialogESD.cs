@@ -9,7 +9,7 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using static JortPob.Dialog;
-using static JortPob.Faction;
+using static JortPob.FactionInfo;
 using static JortPob.NpcContent;
 using static JortPob.NpcManager.TopicData;
 
@@ -782,9 +782,9 @@ namespace JortPob
             // Add enchanting if npc offers it
             if (npcContent.OffersEnchanting())
             {
-                int learnEnchantMenuTopicId = textManager.GetTopic("Learn Enchantment");
+                int learnEnchantMenuTopicId = textManager.GetTopic("Learn Enchantments");
                 int createEnchantMenuTopicId = textManager.GetTopic("Enchant Weapons");
-                s.Append($"        # action:{learnEnchantMenuTopicId}:\"Learn Enchantment\"\r\n        AddTalkListData({listCount++}, {learnEnchantMenuTopicId}, -1)\r\n");
+                s.Append($"        # action:{learnEnchantMenuTopicId}:\"Learn Enchantments\"\r\n        AddTalkListData({listCount++}, {learnEnchantMenuTopicId}, -1)\r\n");
                 s.Append($"        # action:{createEnchantMenuTopicId}:\"Enchant Weapons\"\r\n        AddTalkListData({listCount++}, {createEnchantMenuTopicId}, -1)\r\n");
             }
 
@@ -846,14 +846,14 @@ namespace JortPob
             // smithing options
             if (npcContent.OffersSmithing())
             {
-                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEnhanceShop(EnhanceType.UnlimitedRange)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEnhanceShop(EnhanceType.UnlimitedRange)\r\n            assert not (CheckSpecificPersonMenuIsOpen(9, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
             // tailoring options
             if (npcContent.OffersTailoring())
             {
-                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenTailoringShop(111000, 111399)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenTailoringShop(111000, 111399)\r\n            assert not (CheckSpecificPersonMenuIsOpen(26, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
@@ -867,7 +867,7 @@ namespace JortPob
             // memorize options
             if (npcContent.OffersMemorize())
             {
-                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenMagicEquip(-1, -1)\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenMagicEquip(-1, -1)\r\n            assert not (CheckSpecificPersonMenuIsOpen(11, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
@@ -876,15 +876,26 @@ namespace JortPob
             {
                 int enchantShopId = itemManager.CreateShop(npcContent.stats.GetTier(Stats.Skill.Enchant));
                 s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({enchantShopId}, {enchantShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
-                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEquipmentChangeOfPurposeShop()\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenEquipmentChangeOfPurposeShop()\r\n            assert not (CheckSpecificPersonMenuIsOpen(7, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
             // alchemy options
             if (npcContent.OffersAlchemy())
             {
+                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n");
+
+                foreach (NpcContent.Stats.Tier tier in Enum.GetValues(typeof(NpcContent.Stats.Tier)))
+                {
+                    RecipeManager.RecipeBookInfo book = itemManager.recipeManager.GetBook(tier);
+                    s.Append($"            if ComparePlayerStat(PlayerStat.Intelligence, CompareType.Greater, {(int)(((int)tier) * Const.ALCHEMY_TIER_REQUIREMENT_SCALE)}):\r\n");
+                    s.Append($"                SetEventFlag({book.visible.id}, FlagState.On)\r\n");
+                    s.Append($"            else:\r\n");
+                    s.Append($"                pass\r\n");
+                }
+
                 int alchemyShopId = itemManager.recipeManager.GetShop();
-                s.Append($"        {ifopA} GetTalkListEntryResult() == {listCount++}:\r\n            OpenRegularShop({alchemyShopId}, {alchemyShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
+                s.Append($"            OpenRegularShop({alchemyShopId}, {alchemyShopId + 99})\r\n            assert not (CheckSpecificPersonMenuIsOpen(5, 0) and not CheckSpecificPersonGenericDialogIsOpen(0))\r\n");
                 ifopA = "elif";
             }
 
@@ -1387,7 +1398,7 @@ namespace JortPob
             Script.Flag repFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionReputation, npcContent.faction);
             Script.Flag rankFlag = scriptManager.GetFlag(Script.Flag.Designation.FactionRank, npcContent.faction);
             Script.Flag returnValue = areaScript.CreateFlag(Script.Flag.Category.Temporary, Script.Flag.Type.Nibble, Script.Flag.Designation.ReturnValueRankReq, npcContent.entity.ToString());
-            Faction faction = esm.GetFaction(npcContent.faction);
+            FactionInfo faction = esm.GetFaction(npcContent.faction);
 
             // First rank
             s += $"    if GetEventFlagValue({rankFlag.id}, {rankFlag.Bits()}) == 0:\r\n";
@@ -1395,8 +1406,8 @@ namespace JortPob
 
             for (int i = 0; i < faction.ranks.Count()-1; i++)
             {
-                Faction.Rank rank = faction.ranks[i];
-                Faction.Rank nextRank = faction.ranks[i + 1];
+                FactionInfo.Rank rank = faction.ranks[i];
+                FactionInfo.Rank nextRank = faction.ranks[i + 1];
 
                 // Not max rank
                 if (rank != nextRank)

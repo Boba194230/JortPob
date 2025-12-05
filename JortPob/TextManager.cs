@@ -303,6 +303,13 @@ namespace JortPob
             if (description != null) { entryDescription.Text = description; }
         }
 
+        public void EditMenuText(int id, string text)
+        {
+            FMG fmg = menu[TextType.GR_MenuText];
+            FMG.Entry entry = GetEntry(fmg, id);
+            entry.Text = text;
+        }
+
         public void Write(string dir)
         {
 

@@ -1,18 +1,10 @@
-﻿using HKLib.hk2018.hk;
-using JortPob.Common;
-using Microsoft.Scripting;
-using SoulsFormats.Formats.Morpheme.MorphemeBundle;
+﻿using JortPob.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Reflection.Metadata;
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
-using static HKLib.hk2018.hkpWheelFrictionConstraintAtom;
-using static IronPython.Modules._ast;
-using static JortPob.ItemManager;
-using static JortPob.SpeffManager;
+using static JortPob.JobInfo;
 
 namespace JortPob
 {
@@ -161,43 +153,108 @@ namespace JortPob
             private readonly Dictionary<Skill, int> skills;
             private readonly Dictionary<Attribute, int> attributes;
 
+            /* Defined stats constructor */
             public Stats(JsonNode json)
             {
                 attributes = new();
                 skills = new();
 
-                /* Stats are defined */
-                if (json != null)
+                JsonArray attr = json["attributes"].AsArray();
+                JsonArray skil = json["skills"].AsArray();
+
+                int i = 0;
+                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
                 {
-                    JsonArray attr = json["attributes"].AsArray();
-                    JsonArray skil = json["skills"].AsArray();
-
-                    int i = 0;
-                    foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
-                    {
-                        attributes.Add(attribute, attr[i++].GetValue<int>());
-                    }
-
-                    i = 0;
-                    foreach (Skill skill in Enum.GetValues(typeof(Skill)))
-                    {
-                        skills.Add(skill, skil[i++].GetValue<int>());
-                    }
+                    attributes.Add(attribute, attr[i++].GetValue<int>());
                 }
-                /* Stats are not defined and are being auto calculated */ // @TODO: DESIGN A FUNCTION FOR AUTO GENERATING STATS BASED ON CLASS OR SOMETHING
-                else
+
+                i = 0;
+                foreach (Skill skill in Enum.GetValues(typeof(Skill)))
                 {
-                    int i = 0;
-                    foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                    skills.Add(skill, skil[i++].GetValue<int>());
+                }
+            }
+
+            /* Autocalculated stats constructor */
+            public Stats(Sex sex, RaceInfo raceInfo, JobInfo jobInfo, int level)
+            {
+                attributes = new();
+                skills = new();
+
+                foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
+                {
+                    float baseVal = raceInfo.Get(sex, attribute);  // base racial value for attribute
+                    float bonus = 0;
+                    if(jobInfo.Has(attribute)) { baseVal += 10f; }
+                    foreach(Skill skill in Enum.GetValues(typeof(Skill)))
                     {
-                        attributes.Add(attribute, 30);
+                        if(attribute == GetParent(skill))
+                        {
+                            if(jobInfo.HasMajor(skill)) { bonus += 1f; }
+                            else if(jobInfo.HasMinor(skill)) { bonus += .5f; }
+                            else { bonus += .2f; }
+                        }
                     }
 
-                    i = 0;
-                    foreach (Skill skill in Enum.GetValues(typeof(Skill)))
-                    {
-                        skills.Add(skill, 30);
-                    }
+                    int final = (int)(baseVal + (bonus * (level - 1)));
+                    attributes.Add(attribute, final);
+                }
+
+                foreach (Skill skill in Enum.GetValues(typeof(Skill)))
+                {
+                    float baseVal = raceInfo.Get(skill);
+                    float bonus;
+                    if (jobInfo.HasMajor(skill)) { baseVal += 30f; bonus = 1f; }
+                    else if (jobInfo.HasMinor(skill)) { baseVal += 15f; bonus = 1f; }
+                    else { baseVal += 5f; bonus = .1f; }
+
+                    if(jobInfo.HasSpecialization(skill)) { baseVal += 5f; bonus += .5f; }
+
+                    int final = (int)(baseVal + (bonus * (level - 1)));
+                    skills.Add(skill, final);
+                }
+            }
+
+            private Attribute GetParent(Skill skill)
+            {
+                switch (skill)
+                {
+                    case NpcContent.Stats.Skill.HeavyArmor:
+                    case NpcContent.Stats.Skill.MediumArmor:
+                    case NpcContent.Stats.Skill.Spear:
+                        return Attribute.Endurance;
+                    case NpcContent.Stats.Skill.Acrobatics:
+                    case NpcContent.Stats.Skill.Armorer:
+                    case NpcContent.Stats.Skill.Axe:
+                    case NpcContent.Stats.Skill.BluntWeapon:
+                    case NpcContent.Stats.Skill.LongBlade:
+                        return Attribute.Strength;
+                    case NpcContent.Stats.Skill.Block:
+                    case NpcContent.Stats.Skill.LightArmor:
+                    case NpcContent.Stats.Skill.Marksman:
+                    case NpcContent.Stats.Skill.Sneak:
+                        return Attribute.Agility;
+                    case NpcContent.Stats.Skill.Athletics:
+                    case NpcContent.Stats.Skill.HandToHand:
+                    case NpcContent.Stats.Skill.ShortBlade:
+                    case NpcContent.Stats.Skill.Unarmored:
+                        return Attribute.Speed;
+                    case NpcContent.Stats.Skill.Mercantile:
+                    case NpcContent.Stats.Skill.Speechcraft:
+                    case NpcContent.Stats.Skill.Illusion:
+                        return Attribute.Personality;
+                    case NpcContent.Stats.Skill.Security:
+                    case NpcContent.Stats.Skill.Alchemy:
+                    case NpcContent.Stats.Skill.Conjuration:
+                    case NpcContent.Stats.Skill.Enchant:
+                        return Attribute.Intelligence;
+                    case NpcContent.Stats.Skill.Alteration:
+                    case NpcContent.Stats.Skill.Destruction:
+                    case NpcContent.Stats.Skill.Mysticism:
+                    case NpcContent.Stats.Skill.Restoration:
+                        return Attribute.Willpower;
+                    default:
+                        throw new Exception("What the fuck");
                 }
             }
 
@@ -229,7 +286,7 @@ namespace JortPob
             }
         }
 
-        public NpcContent(Cell cell, JsonNode json, Record record) : base(cell, json, record)
+        public NpcContent(ESM esm, Cell cell, JsonNode json, Record record) : base(cell, json, record)
         {
             race = (Race)System.Enum.Parse(typeof(Race), record.json["race"].ToString().Replace(" ", ""));
             job = record.json["class"].ToString();
@@ -253,7 +310,14 @@ namespace JortPob
             hostile = fight >= 80; // @TODO: recalc with disposition mods based off UESP calc
             dead = record.json["data"]["stats"] != null && record.json["data"]["stats"]["health"] != null ? (int.Parse(record.json["data"]["stats"]["health"].ToString()) <= 0) : false;
 
-            stats = new(record.json["data"]["stats"]);
+            if (record.json["data"]["stats"] != null)
+            {
+                stats = new(record.json["data"]["stats"]);
+            }
+            else
+            {
+                stats = new(sex, esm.GetRace(record.json["race"].ToString()), esm.GetJob(job), level);
+            }
 
             string[] serviceFlags = record.json["ai_data"]["services"].ToString().Split("|");
             services = new();
@@ -338,17 +402,17 @@ namespace JortPob
 
         public bool OffersEnchanting()
         {
-            return services.Contains(Service.OffersEnchanting) || OffersTraining(Stats.Skill.Enchant);
+            return job.ToLower() == "enchanter service" || services.Contains(Service.OffersEnchanting) || OffersTraining(Stats.Skill.Enchant);
         }
 
         public bool OffersTraining(Stats.Skill skill)
         {
-            return services.Contains(Service.OffersTraining) && stats.GetHighest(3).Contains(skill);
+            return services.Contains(Service.OffersTraining) && stats.GetHighest(3).Contains(skill) && stats.Get(skill) >= (int)Stats.Tier.Apprentice;
         }
 
         public bool OffersAlchemy()
         {
-            return OffersTraining(Stats.Skill.Alchemy);
+            return job.ToLower() == "alchemist service" || job.ToLower() == "apothecary service" || OffersTraining(Stats.Skill.Alchemy);
         }
 
         public bool OffersTailoring()

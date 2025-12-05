@@ -119,6 +119,23 @@ namespace JortPob
 
                 nextRecipeId += 10;
             }
+
+            /* Final thing, generate a script in common for managing when the player can or cannot craft */
+            List<ItemManager.ItemInfo> alchemyTools = itemManager.GetItems(new()
+            {
+                "apparatus_a_mortar_01",
+                "apparatus_j_mortar_01",
+                "apparatus_m_mortar_01",
+                "apparatus_g_mortar_01",
+                "apparatus_sm_mortar_01"
+            });
+            scriptManager.common.CreateAlchemyHandler(alchemyTools);
+            textManager.EditMenuText(101009, "Alchemy");
+        }
+
+        /* Get book */
+        public RecipeBookInfo GetBook(NpcContent.Stats.Tier tier) {
+            return books[tier];
         }
 
         /* Returns id to alchemy recipebook shop */

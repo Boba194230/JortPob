@@ -89,7 +89,7 @@ namespace JortPob
                         else { emitters.Add(new EmitterContent(this, reference, record)); }
                         break;
                     case ESM.Type.Npc:
-                        npcs.Add(new NpcContent(this, reference, record));
+                        npcs.Add(new NpcContent(esm, this, reference, record));
                         break;
                     case ESM.Type.Creature:
                     case ESM.Type.LeveledCreature:

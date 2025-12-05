@@ -1,5 +1,6 @@
 ﻿using HKLib.hk2018.hknpRagdollState;
 using HKX2;
+using SoulsAssetPipeline.Animation;
 using SoulsFormats;
 using System.Collections.Generic;
 using System.Numerics;
@@ -87,7 +88,9 @@ namespace JortPob.Common
         #region Gameplay
         public static readonly float MERCANTILE_BUY_SCALE = 1.1f;
         public static readonly float MERCANTILE_SELL_SCALE = 0.45f;
-        public static readonly float MERCANTILE_SPELL_VALUE_SCALE = 10f;
+        public static readonly float MERCANTILE_SPELL_VALUE_SCALE = 10f;     // multiplier of spells mana cost to it's purchase value
+
+        public static readonly float ALCHEMY_TIER_REQUIREMENT_SCALE = 0.45f; // instead of 100 being "master" its 100 * X
         #endregion
 
         #region Papyrus
