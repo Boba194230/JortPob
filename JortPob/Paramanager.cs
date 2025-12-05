@@ -546,6 +546,8 @@ namespace JortPob
                 {
                     for (int i = 0; i < talk.talkRows.Count(); i++)
                     {
+                        if (talkParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of talk param rows!"); }
+
                         int id = talk.talkRows[i];
                         string text = talk.splitText[i];
 
