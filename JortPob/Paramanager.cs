@@ -128,6 +128,9 @@ namespace JortPob
 
             param = ParamWorker.Go(paramBnd, paramdefs);
 
+            FsParam test = FsParam.Read(@"I:\SteamLibrary\steamapps\common\ELDEN RING\param.txt");
+            test.ApplyParamdef(paramdefs[ParamDefType.ITEMLOT_PARAM_ST]); // @TODO DELETE ME
+
             /* Clear out most of the talk params to make room for our custom ones */
             /* Just keeping some important ones for opening cutscene */
             FsParam talkParam = param[ParamType.TalkParam];
@@ -197,6 +200,8 @@ namespace JortPob
 
         public void AddRow(FsParam param, FsParam.Row row)
         {
+            if (param.Rows.Count() >= ushort.MaxValue - 3) { throw new Exception($"{param.ParamType.ToString()} exceeded {ushort.MaxValue} rows!"); }
+
             FsParam.Row oldrow = param[row.ID];
             if (oldrow != null)
                 param.RemoveRow(oldrow);
@@ -576,8 +581,6 @@ namespace JortPob
                 {
                     for (int i = 0; i < talk.talkRows.Count(); i++)
                     {
-                        if (talkParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of talk param rows!"); }
-
                         int id = talk.talkRows[i];
                         string text = talk.splitText[i];
 
@@ -904,8 +907,6 @@ namespace JortPob
         {
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             FsParam.Row row = CloneRow(itemLotParam[0], $"single, repeatable, scripted, {itemInfo.type}", nextMapItemLotId); // 0 is a default template we created in the constructor
-            
-            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             row["getItemFlagId"].Value.SetValue((uint)0);
             row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
@@ -926,8 +927,6 @@ namespace JortPob
             Script.Flag itemLotFlag = script.CreateFlag(Script.Flag.Category.Saved, Script.Flag.Type.Bit, Script.Flag.Designation.Item, $"TreasureItem::{itemInfo.type}:{itemInfo.row}");
             itemContent.treasure = itemLotFlag;
 
-            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
-
             row["getItemFlagId"].Value.SetValue(itemLotFlag.id);
             row["lotItemCategory01"].Value.SetValue(itemInfo.ItemLotCategory());
             row["lotItemId01"].Value.SetValue(itemInfo.row);
@@ -947,7 +946,6 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
-            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
@@ -977,7 +975,6 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_map];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
-            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextMapItemLotId;
@@ -1009,7 +1006,6 @@ namespace JortPob
             FsParam itemLotParam = param[Paramanager.ParamType.ItemLotParam_enemy];
             if (inventory.Count() <= 0) { return -1; } // skip empty inv
             if (inventory.Count() > 10) { throw new Exception($" Inventory itemlot exceeded max entries!"); }
-            if (itemLotParam.Rows.Count() >= ushort.MaxValue - 1) { throw new Exception("Ran out of itemlot param rows!"); }
 
             int i = 0;
             int baseRow = nextEnemyItemLotId;
