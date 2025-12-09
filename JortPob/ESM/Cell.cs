@@ -98,7 +98,10 @@ namespace JortPob
                         creatures.Add(new CreatureContent(this, reference, record));
                         break;
                     case ESM.Type.Container:
-                        if(id.ToLower().StartsWith("flora_")) { pickables.Add(new PickableContent(this, reference, record)); }
+                        if (id.ToLower().StartsWith("flora_") && id.ToLower() != "flora_treestump_unique") // this specific id is a weird outlier so just adding it as a condition here
+                        {
+                            pickables.Add(new PickableContent(this, reference, record));
+                        }
                         else { containers.Add(new ContainerContent(this, reference, record)); }
                         break;
                     case ESM.Type.Weapon:
