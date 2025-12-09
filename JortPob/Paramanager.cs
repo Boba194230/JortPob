@@ -431,12 +431,12 @@ namespace JortPob
                 FsParam.Row actionRow = CloneRow(actionParam[7817], pickable.ActionText(), nextActionButtonId++); // 7817 is rowa berry harvest prompt
                 int textId = textManager.AddActionButton(pickable.ActionText());
 
-                actionRow["radius"].Value.SetValue(1f); // radius
+                actionRow["radius"].Value.SetValue(1.45f); // radius
                 actionRow["angle"].Value.SetValue(180); // angle from dmy
                 actionRow["depth"].Value.SetValue(0f);
                 actionRow["width"].Value.SetValue(0f);
-                actionRow["height"].Value.SetValue(1.75f);
-                actionRow["baseHeightOffset"].Value.SetValue(-1.25f);
+                actionRow["height"].Value.SetValue(2.25f);
+                actionRow["baseHeightOffset"].Value.SetValue(-1.75f);
                 actionRow["angleCheckType"].Value.SetValue((byte)0);
                 actionRow["allowAngle"].Value.SetValue(180);  // player look angle
                 actionRow["textId"].Value.SetValue(textId);
