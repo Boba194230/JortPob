@@ -116,13 +116,12 @@ namespace JortPob.Common
             MSBE.Part.Asset asset = Asset(pickableInfo.model);  // kind of lazy but it works guh
 
             /* Instance */
-            int inst;
-            if (PickableInstances.ContainsKey(pickableInfo)) { inst = ++PickableInstances[pickableInfo]; }
-            else { inst = 0; PickableInstances.Add(pickableInfo, inst); }
+            if (!PickableInstances.TryGetValue(pickableInfo, out var inst)) { inst = 0; }
             asset.InstanceID = inst;
+            PickableInstances[pickableInfo] = ++inst;
 
             /* Model Stuff */
-            asset.Name = $"{pickableInfo.AssetName().ToUpper()}_{inst.ToString("D4")}";
+            asset.Name = $"{pickableInfo.AssetName().ToUpper()}_{asset.InstanceID.ToString("D4")}";
             asset.ModelName = pickableInfo.AssetName().ToUpper();
 
             /* Asset Partnames */

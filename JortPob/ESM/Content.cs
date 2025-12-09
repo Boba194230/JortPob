@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Nodes;
-using static JortPob.JobInfo;
 
 namespace JortPob
 {
@@ -159,19 +158,19 @@ namespace JortPob
                 attributes = new();
                 skills = new();
 
-                JsonArray attr = json["attributes"].AsArray();
-                JsonArray skil = json["skills"].AsArray();
+                JsonArray jsonAttributes = json["attributes"].AsArray();
+                JsonArray jsonSkills = json["skills"].AsArray();
 
                 int i = 0;
                 foreach (Attribute attribute in Enum.GetValues(typeof(Attribute)))
                 {
-                    attributes.Add(attribute, attr[i++].GetValue<int>());
+                    attributes.Add(attribute, jsonAttributes[i++].GetValue<int>());
                 }
 
                 i = 0;
                 foreach (Skill skill in Enum.GetValues(typeof(Skill)))
                 {
-                    skills.Add(skill, skil[i++].GetValue<int>());
+                    skills.Add(skill, jsonSkills[i++].GetValue<int>());
                 }
             }
 
@@ -196,8 +195,8 @@ namespace JortPob
                         }
                     }
 
-                    int final = (int)(baseVal + (bonus * (level - 1)));
-                    attributes.Add(attribute, final);
+                    int calculatedValue = (int)(baseVal + (bonus * (level - 1)));
+                    attributes.Add(attribute, calculatedValue);
                 }
 
                 foreach (Skill skill in Enum.GetValues(typeof(Skill)))
@@ -210,8 +209,8 @@ namespace JortPob
 
                     if(jobInfo.HasSpecialization(skill)) { baseVal += 5f; bonus += .5f; }
 
-                    int final = (int)(baseVal + (bonus * (level - 1)));
-                    skills.Add(skill, final);
+                    int calculatedValue = (int)(baseVal + (bonus * (level - 1)));
+                    skills.Add(skill, calculatedValue);
                 }
             }
 

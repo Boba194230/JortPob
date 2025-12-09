@@ -68,7 +68,7 @@ namespace JortPob.Common
         {
             foreach (PickableInfo pickable in cache.pickables)
             {
-                string outPath = $"{Const.OUTPUT_PATH}asset\\aeg\\{pickable.AssetPath()}.geombnd.dcx";
+                string outPath = $@"{Const.OUTPUT_PATH}asset\aeg\{pickable.AssetPath()}.geombnd.dcx";
 
                 // Bind up emitter asset flver
                 {
@@ -85,7 +85,7 @@ namespace JortPob.Common
                     file.CompressionType = SoulsFormats.DCX.Type.Zlib;
                     file.Flags = SoulsFormats.Binder.FileFlags.Flag1;
                     file.ID = 200;
-                    file.Name = $"N:\\GR\\data\\INTERROOT_win64\\asset\\aeg\\{pickable.AssetPath()}\\sib\\{pickable.AssetName()}.flver";
+                    file.Name = $@"N:\GR\data\INTERROOT_win64\asset\aeg\{pickable.AssetPath()}\sib\{pickable.AssetName()}.flver";
                     file.Bytes = flver.Write();
 
                     bnd.Files.Add(file);

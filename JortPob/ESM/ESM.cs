@@ -340,41 +340,13 @@ namespace JortPob
             }
         }
 
-        public JobInfo GetJob(string id)
-        {
-            foreach (JobInfo job in jobs)
-            {
-                if (job.id == id.ToLower()) { return job; }
-            }
-            return null;
-        }
+        public JobInfo? GetJob(string id) => jobs.FirstOrDefault(job => job.id == id.ToLower());
 
-        public RaceInfo GetRace(string id)
-        {
-            foreach (RaceInfo race in races)
-            {
-                if (race.id == id.ToLower()) { return race; }
-            }
-            return null;
-        }
+        public RaceInfo? GetRace(string id) => races.FirstOrDefault(race => race.id == id.ToLower());
 
-        public FactionInfo GetFaction(string id)
-        {
-            foreach (FactionInfo faction in factions)
-            {
-                if (faction.id == id.ToLower()) { return faction; }
-            }
-            return null;
-        }
+        public FactionInfo? GetFaction(string id) => factions.FirstOrDefault(faction => faction.id == id.ToLower());
 
-        public Papyrus GetPapyrus(string id)
-        {
-            foreach (Papyrus papyrus in scripts)
-            {
-                if (papyrus.id == id) { return papyrus; }
-            }
-            return null;
-        }
+        public Papyrus? GetPapyrus(string id) => scripts.FirstOrDefault(script => script.id == id.ToLower());
 
         /* Get dialog and character data for building esd */
         public List<Tuple<DialogRecord, List<DialogInfoRecord>>> GetDialog(ScriptManager scriptManager, NpcContent npc)
@@ -437,7 +409,7 @@ namespace JortPob
 
             }
 
-            for (int i=0;i<=6;i++)
+            for (int i=0;i<=6;i++)  // 7 is the number of skills a race can have as thier 'bonus' skills. hardcoded to esm. indexed as skill_0 to skill_6
             {
                 string s = json["data"]["skill_bonuses"][$"skill_{i}"].GetValue<string>();
                 if (s.ToLower() == "none") { continue; }

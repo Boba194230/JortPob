@@ -231,7 +231,7 @@ namespace JortPob
             public AlchemyInfo(string id, JsonNode json)
             {
                 this.id = id;
-                comment = json["comment"] != null ? json["comment"].GetValue<string>() : null;
+                comment = json["comment"]?.GetValue<string>();
                 tier = (NpcContent.Stats.Tier)System.Enum.Parse(typeof(NpcContent.Stats.Tier), json["tier"].GetValue<string>());
 
                 ingredients = new();
@@ -254,7 +254,7 @@ namespace JortPob
 
             public SkillInfo(JsonNode json)
             {
-                comment = json["comment"] != null ? json["comment"].GetValue<string>() : null;
+                comment = json["comment"]?.GetValue<string>();
                 row = json["row"].GetValue<int>();
                 tier = (NpcContent.Stats.Tier)System.Enum.Parse(typeof(NpcContent.Stats.Tier), json["tier"].GetValue<string>());
                 value = json["value"].GetValue<int>();
@@ -289,7 +289,7 @@ namespace JortPob
             {
                 this.id = id;
                 row = json["row"].GetValue<int>();
-                comment = json["comment"] != null ? json["comment"].GetValue<string>() : null;
+                comment = json["comment"]?.GetValue<string>();
 
                 if (json["text"] != null)
                 {
@@ -327,7 +327,7 @@ namespace JortPob
                 this.id = id;
                 type = (ItemManager.Type)System.Enum.Parse(typeof(ItemManager.Type), json["type"].GetValue<string>());
                 row = json["row"].GetValue<int>();
-                comment = json["comment"] != null ? json["comment"].GetValue<string>() : null;
+                comment = json["comment"]?.GetValue<string>();
 
                 if (json["infusion"] != null)
                 {
@@ -385,7 +385,7 @@ namespace JortPob
 
                 JsonNode json = JsonNode.Parse(File.ReadAllText(jsonPath));
 
-                comment = json["comment"].GetValue<string>();
+                comment = json["comment"]?.GetValue<string>();
                 row = json["row"].GetValue<int>();
 
                 if (json["icon"] != null && json["icon"].GetValue<string>().Trim().ToLower() != "none")
@@ -422,7 +422,7 @@ namespace JortPob
 
                 JsonNode json = JsonNode.Parse(File.ReadAllText(jsonPath));
 
-                comment = json["comment"].GetValue<string>();
+                comment = json["comment"]?.GetValue<string>();
                 type = (ItemManager.Type)System.Enum.Parse(typeof(ItemManager.Type), json["type"].GetValue<string>());
                 row = json["row"].GetValue<int>();
 

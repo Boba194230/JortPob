@@ -206,19 +206,8 @@ namespace JortPob.Model
             /* Write flver */
             flver.Write(outputPath);
 
-            /* Load overrides list for collision */
-            JsonNode json = JsonNode.Parse(File.ReadAllText(Utility.ResourcePath(@"overrides\static_collision.json")));
-            bool CheckOverride(string name)
-            {
-                foreach (JsonNode node in json.AsArray())
-                {
-                    if (node.ToString().ToLower() == name.ToLower()) { return true; }
-                }
-                return false;
-            }
-
             /* Generate collision obj if the model contains a collision mesh */
-            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !CheckOverride(modelInfo.name))
+            if ((nif.CollisionMeshes.Count > 0 || forceCollision) && !Override.CheckStaticCollision(modelInfo.name))
             {
                 /* Best guess for collision material */
                 Obj.CollisionMaterial matguess = Obj.CollisionMaterial.None;
